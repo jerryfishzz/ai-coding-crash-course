@@ -83,6 +83,7 @@ describe("listAgents", () => {
       "pi",
       "omp",
       "gemini",
+      "antigravity",
       "junie",
       "cursor",
       "amp",
@@ -301,6 +302,15 @@ describe("resolveChoice — upstream hosts", () => {
       target("gemini", "google-login").upstreamHost
     );
   });
+
+  it("sends Antigravity CLI's API key route to the same public API host as Gemini CLI's", () => {
+    expect(target("antigravity", "api-key").upstreamHost).toBe(
+      "generativelanguage.googleapis.com"
+    );
+    expect(target("antigravity", "api-key").upstreamHost).toBe(
+      target("gemini", "api-key").upstreamHost
+    );
+  });
 });
 
 describe("resolveChoice — renderers", () => {
@@ -336,6 +346,10 @@ describe("resolveChoice — renderers", () => {
   it("reads both Gemini routes with the Gemini renderer", () => {
     expect(target("gemini", "api-key").renderer).toBe("gemini");
     expect(target("gemini", "google-login").renderer).toBe("gemini");
+  });
+
+  it("reads Antigravity CLI with the Gemini renderer too, since it speaks the same wire format", () => {
+    expect(target("antigravity", "api-key").renderer).toBe("gemini");
   });
 });
 
@@ -487,6 +501,12 @@ describe("resolveChoice — commands", () => {
     );
     expect(target("gemini", "google-login").command).not.toContain(
       "GOOGLE_GEMINI_BASE_URL"
+    );
+  });
+
+  it("runs agy, not gemini, for Antigravity CLI", () => {
+    expect(target("antigravity", "api-key").command).toBe(
+      "GOOGLE_GEMINI_BASE_URL=http://localhost:8787 agy"
     );
   });
 
@@ -667,6 +687,27 @@ describe("resolveChoice — notes and warnings", () => {
 
   it("tells a Gemini student the Google login is free", () => {
     expect(target("gemini", "google-login").notes.join(" ")).toContain("free");
+  });
+
+  it("writes Antigravity CLI's settings file with modelProvider set to gemini", () => {
+    const result = target("antigravity", "api-key");
+    expect(result.setup).toHaveLength(1);
+    expect(result.setup[0].path).toBe(
+      "~/.gemini/antigravity-cli/settings.json"
+    );
+    expect(result.setup[0].body).toContain('"modelProvider": "gemini"');
+  });
+
+  it("tells an Antigravity CLI student to also export GEMINI_API_KEY", () => {
+    expect(target("antigravity", "api-key").notes.join(" ")).toContain(
+      "GEMINI_API_KEY"
+    );
+  });
+
+  it("warns an Antigravity CLI student that the account sign-in route is not covered", () => {
+    expect(target("antigravity", "api-key").warnings.join(" ")).toContain(
+      "sign-in"
+    );
   });
 });
 
@@ -871,7 +912,12 @@ describe("resolveChoice — custom base URL", () => {
     expect(result.upstreamBaseUrl).toBe("https://api.deepseek.com");
   });
 
-  it("strips a path from the typed base URL, the same way the catalogue keeps a bare host", () => {
+  it("keeps a path segment from the typed base URL instead of discarding it", () => {
+    // Regression test for #74: a custom base URL like OpenCode Go's
+    // https://opencode.ai/zen/go carries a path prefix the upstream actually
+    // needs. Reducing this to origin-only silently drops it, and proxy.ts
+    // then forwards to https://opencode.ai/v1/chat/completions — a 404 —
+    // instead of https://opencode.ai/zen/go/v1/chat/completions.
     const result = customTarget({
       agent: "opencode",
       provider: CUSTOM_ID,
@@ -879,7 +925,20 @@ describe("resolveChoice — custom base URL", () => {
       customRenderer: "openai",
       customModel: "test-model",
     });
-    expect(result.upstreamBaseUrl).toBe("https://api.deepseek.com");
+    expect(result.upstreamBaseUrl).toBe(
+      "https://api.deepseek.com/v1/some/path"
+    );
+  });
+
+  it("drops a trailing slash from a typed path prefix, so proxy.ts never joins a doubled slash", () => {
+    const result = customTarget({
+      agent: "opencode",
+      provider: CUSTOM_ID,
+      customBaseUrl: "https://opencode.ai/zen/go/",
+      customRenderer: "openai",
+      customModel: "test-model",
+    });
+    expect(result.upstreamBaseUrl).toBe("https://opencode.ai/zen/go");
   });
 
   it("rejects a base URL with no scheme", () => {
