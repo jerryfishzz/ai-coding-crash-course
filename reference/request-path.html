@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request path — repo reference</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Follow a request</h1>
+  <div class="map">URL → <a href="../app/routes.ts">route table</a> → route <code>loader</code> → <a href="../app/services/courseService.ts">service</a> → <a href="../app/db/schema.ts">Drizzle / SQLite</a> → loader data → React component</div>
+  <ul>
+    <li><strong>Route config</strong> maps a URL pattern to a module.</li>
+    <li><strong>Loader</strong> gathers request-specific data on the server.</li>
+    <li><strong>Service</strong> owns reusable domain queries and writes.</li>
+    <li><strong>Schema</strong> describes persisted tables and relationships.</li>
+    <li><strong>Component</strong> renders the data; it need not issue the database query.</li>
+  </ul>
+  <p>Useful example: <a href="../app/routes/courses.$slug.tsx">course detail route</a>.</p>
+</main>
+</body>
+</html>
