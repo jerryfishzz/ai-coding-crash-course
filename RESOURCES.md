@@ -11,7 +11,12 @@
 ## Primary documentation
 
 - [React Router: Data Loading](https://reactrouter.com/start/framework/data-loading) — official explanation of server loaders and how their data reaches route components.
+- [React Router: Actions](https://reactrouter.com/start/framework/actions) — official guide to server-side route mutations and automatic loader revalidation.
+- [React Router: Sessions and Cookies](https://reactrouter.com/explanation/sessions-and-cookies) — official explanation of cookie-backed and custom server-side session storage.
 - [Drizzle ORM: SQLite](https://orm.drizzle.team/docs/get-started-sqlite) — official setup and query overview for SQLite drivers, including `better-sqlite3`.
+- [Drizzle Kit: Migrations](https://orm.drizzle.team/docs/migrations) — official overview of code-first and database-first migration workflows.
+- [Drizzle Kit: Generate](https://orm.drizzle.team/docs/drizzle-kit-generate) — how schema diffs become SQL migration files.
+- [SQLite: Foreign Key Support](https://www.sqlite.org/foreignkeys.html) — primary reference for relational integrity constraints in SQLite.
 
 ## Further exploration
 

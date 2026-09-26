@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your starting point and repo learning path</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo orientation · Lesson 02 · 6 minutes</p>
+  <h1>Your starting point and learning path</h1>
+  <p class="dek">You’re an experienced developer returning to a React codebase, with a clear opportunity to strengthen server and database fluency. This is a provisional map based on your description, not a scored technical assessment.</p>
+
+  <h2>Provisional skill profile</h2>
+  <ul>
+    <li><strong>Build on:</strong> professional software development experience, TypeScript, React, and cross-platform UI work. Start from familiar component and state ideas.</li>
+    <li><strong>Refresh:</strong> React after a two-year gap, plus React Router’s route-module and server-rendering model. You described your current framework knowledge as basic.</li>
+    <li><strong>Develop:</strong> backend request handling and relational database work. Your Node/Express and SQL experience gives you a foundation; complex data and backend tasks are the stated stretch areas.</li>
+    <li><strong>Learn in context:</strong> Drizzle ORM and this repo’s conventions. The project uses React Router, TypeScript, SQLite, Drizzle, Zod, and Vitest; it does not use Next.js.</li>
+  </ul>
+  <p class="takeaway"><strong>My estimate:</strong> experienced developer overall; frontend-oriented; backend and database foundations present but not yet confident for complex changes. I can’t reliably rate your depth until I see you reason through a real code path.</p>
+
+  <h2>A path through this repo</h2>
+  <div class="map">1. URL and route module<br>2. Loader for reads; action for writes<br>3. Service for reusable domain operations<br>4. Drizzle queries and SQLite relationships<br>5. Validation, authorization, and persistence<br>6. Tests, migrations, and end-to-end change</div>
+  <ol>
+    <li><strong>Refresh React Router.</strong> Follow a route from <a href="../app/routes.ts"><code>app/routes.ts</code></a> into its module. Learn how loaders provide server data and how actions handle mutations. Read the official <a href="https://reactrouter.com/start/framework/data-loading">data loading</a> and <a href="https://reactrouter.com/start/framework/actions">actions</a> guides.</li>
+    <li><strong>Trace a vertical slice.</strong> Revisit <a href="0001-trace-a-course-request.html">Lesson 01</a>, then follow a form submission from route action through validation and a service to the database. Compare it with your Express middleware and handler experience.</li>
+    <li><strong>Build database confidence.</strong> Read <a href="../app/db/schema.ts">the schema</a> as a map of entities and foreign keys. Practise joins and constraints before tackling a schema change. Then learn the repo’s generate-and-migrate flow from <a href="https://orm.drizzle.team/docs/migrations">Drizzle’s migration guide</a> and <a href="https://orm.drizzle.team/docs/drizzle-kit-generate">generate command</a>.</li>
+    <li><strong>Make one small change end to end.</strong> Add or adjust a behavior that touches UI, route handling, a service, persistence, and a focused test. Review the generated SQL migration before applying it.</li>
+  </ol>
+
+  <h2>Calibration exercise</h2>
+  <p>To turn this estimate into an evidence-based guide, choose one write path—<a href="../app/routes/api.switch-user.ts">switching users</a> is a compact example—and explain in your own words:</p>
+  <ol>
+    <li>What starts the request, and which route function receives it?</li>
+    <li>Where is the submitted data validated, and where is the session changed?</li>
+    <li>If this operation instead wrote a database row, which service/schema files and migration steps would you expect?</li>
+  </ol>
+  <p>Partial answers are useful. I’ll use what you can explain confidently and where you hesitate to adjust the next lesson’s difficulty. After you try it, compare your model with <a href="0003-cookie-session-vs-database-state.html">Lesson 03: cookie session or database row?</a></p>
+
+  <p>The README calls the framework React Router v7, while <code>package.json</code> and the lockfile declare <code>8.3.0</code>. When a version-sensitive detail matters, we should follow the code and installed package first, then check the matching official docs.</p>
+
+  <footer>
+    <p><a href="../reference/request-path.html">Request-path reference</a> · <a href="../RESOURCES.md">Resource list</a> · <a href="../README.md">Repository README</a></p>
+    <p>Ask me about any part of this path. Once you try the calibration exercise, I can give you a sharper level estimate and tailor the next lesson.</p>
+  </footer>
+</main>
+</body>
+</html>
