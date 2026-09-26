@@ -15,7 +15,7 @@
 
   <h2>Trace what this app does</h2>
   <div class="map"><a href="../app/components/dev-ui.tsx">DevUI form</a> → POST <code>/api/switch-user</code> → <code>action</code> validates <code>userId</code> → <a href="../app/lib/session.ts"><code>setCurrentUserId</code></a> changes session → redirect responds with <code>Set-Cookie</code></div>
-  <p>You correctly found the form, route, and validation. One refinement: the session value is set inside <code>setCurrentUserId</code>, where <code>session.set("userId", userId)</code> updates the in-memory session object and <code>commitSession</code> creates the cookie value. The action then attaches that cookie to the redirect response with <code>Set-Cookie</code>. React Router’s <code>createCookieSessionStorage</code> stores session data in the cookie itself, so this path does not update SQLite.</p>
+  <p>You correctly found the form, route, and validation. One refinement: the session value is set inside <code>setCurrentUserId</code>, where <code>session.set("userId", userId)</code> updates the in-memory session object and <code>commitSession</code> creates the cookie value. The action then attaches that cookie to the redirect response with <code>Set-Cookie</code>. React Router’s <code>createCookieSessionStorage</code> stores session data in the cookie itself, so this path does not update SQLite. That is why you do not see a <code>sessions</code> table in this database.</p>
 
   <p class="takeaway"><strong>Model by lifetime and meaning:</strong> “which user am I simulating in this browser?” is session context. “who is this user?” is durable account data in the <code>users</code> table.</p>
 
@@ -30,6 +30,7 @@
 
   <h2>When would a service and migration belong?</h2>
   <p>When a feature creates a durable domain fact, model that fact in the table that owns it. For example, enrolling a user in a course belongs to enrollment data and its service—not automatically to <code>userService</code> or a new column on <code>users</code>. A column such as <code>current_user</code> would put browser/session selection on the user’s shared account row, where it could conflict across sessions.</p>
+  <p>Your instinct to look for an existing persistence pattern was sound. If this app instead stored session data on the server, a separate session store or table could be appropriate. In this repo, the storage choice is already cookie-backed; adding a <code>current_user</code> column would change the meaning and sharing scope of the value instead of following the session pattern.</p>
   <p>For a real schema change in this repo, update <a href="../app/db/schema.ts"><code>app/db/schema.ts</code></a>, run <code>npm run db:generate</code>, inspect the generated SQL in <a href="../drizzle/0002_lying_shriek.sql"><code>drizzle/</code></a>, then run <code>npm run db:migrate</code>. Drizzle’s guides explain <a href="https://orm.drizzle.team/docs/migrations">migration workflows</a>; React Router’s <a href="https://reactrouter.com/explanation/sessions-and-cookies">session guide</a> describes cookie-backed and database-backed alternatives.</p>
 
   <p>Ask me about any boundary that still feels unclear. Next, we can trace a route that really does write a domain row, then compare its validation, service, schema, and migration responsibilities.</p>

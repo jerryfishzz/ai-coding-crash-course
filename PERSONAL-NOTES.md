@@ -6,7 +6,7 @@
 
   Open Drizzle Studio web application
 
-## Teach me
+## Teach Me
 
 ### Question 1
 
@@ -40,6 +40,10 @@ Based on your questions from Calibration exercise on the page `lessons/0002-skil
 
     The service should be `userService` while the schema should be `users`. The `users` table should add a new column like `current_user` or something for the currently active user. This needs a corresponding migration to update the database schema accordingly.
 
+_Response to its answer:_
+
+I agreed with your answer that the database operation should be related to session. But I saw there is no sessions table in the database. So I thought probably I should follow the existing structure and add the info in users table.
+
 ## Codex Context window customization
 
 `~/.codex/config.toml`
@@ -47,3 +51,10 @@ Based on your questions from Calibration exercise on the page `lessons/0002-skil
 In the first section before the project name line, add:
 
 `model_context_window = 1050000`
+
+## Migration Steps
+
+1. Update `app/db/schema.ts`
+2. Run `npm run db:generate`
+3. Inspect the generated SQL in `drizzle/`
+4. Run `npm run db:migrate`
