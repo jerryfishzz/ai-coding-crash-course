@@ -18,7 +18,7 @@ Application checks express domain intent and give useful errors. Database constr
 
 ## Next useful challenge
 
-Compare this relationship with `lessons.moduleId` → `modules.id`. Explain what would happen if the app changed the foreign key to cascade deletes, and which product behavior that choice would encode.
+Compare this relationship with `lessons.moduleId` → `modules.id`. [Lesson 06](../lessons/0006-deletion-policy-and-transactions.html) explores cascade policy and atomic cleanup.
 
 ## Calibration evidence
 

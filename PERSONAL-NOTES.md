@@ -113,6 +113,70 @@ _Response from AI:_
 
 One refinement: the immediate blocker is that other rows reference the lessons, not that other tables still reference the module.
 
+### Lesson 6
+
+_For practice:_
+
+Let me tell you my ideas on all the three options.
+
+- Preserve history by archiving modules
+
+  We need to create a migration to add a boolean typed `archived` column to the `modules` table. So when users choose to delete the module, we can simply set `archived` to `true` instead of actually removing the row from the database.
+
+  We also need to modify UI components to reflect the archived status, such as hiding archived modules from the main view or indicating their archived state.
+
+- Restrict deletion when history exists
+
+  This will be similar to deleting category. We can check dependency tree for any lessons or other entities that reference the module before allowing deletion. If dependencies exist, we can prevent deletion and provide a meaningful message to the user.
+
+- Cascade deletion
+
+  We need to create a migration to add `ON DELETE CASCADE` to the foreign key constraints for any lessons or other entities that reference the module. This ensures that when a module is deleted, all dependent rows are automatically removed from the database. We also need to put it as a transaction to maintain database integrity.
+
+_Answer:_
+
+- Archive: Your approach preserves history. Remember to update every relevant list, lookup, and route so archived modules are hidden or clearly labelled. An `archivedAt` timestamp can also record when the archive happened.
+
+- Restrict: Checking for dependencies and explaining why deletion is blocked is sensible. Check the full dependency tree — not just lessons — and keep the foreign-key constraint as a final safeguard against deletion slipping through.
+
+- Cascade: You’re right that the foreign-key policy must be reflected in the schema. One important wrinkle: cascading from modules to lessons alone wouldn’t remove progress, quizzes, and video events that refer to those lessons. Each relationship needs an intentional policy. A transaction is essential for explicit multi-step cleanup; a single SQLite delete with configured cascades is atomic on its own.
+
+_Question:_
+
+Questions to your answer:
+
+- Archive: do you mean I need to add `archived` column to all the relevant tables that directly or indirectly reference modules? So when I archive a module, I also need to mark all dependent rows as archived? If so, this action also needs to be done within a transaction to maintain database integrity.
+
+- Cascade: you said "cascading from modules to lessons alone wouldn’t remove progress, quizzes, and video events that refer to those lessons". So if I create a migration that add `ON DELETE CASCADE` to all the foreign keys in the database, does it mean it will ensure all dependent rows are automatically removed when a module is deleted? Basically, what I mean is I will make `ON DELETE CASCADE` as a database-level policy for all relationships.
+
+I think it would be good to have some real examples to demonstrate those scenarios. I don't know how you arrange the lesson progress and content. But it would be good to let me know.
+
+_Question:_
+
+In cascade deletion, if `NO ACTION` edge blocks the statement, does the whole cascade deletion stop? Do I need to wrap this deletion within a transaction since one-line deletion on a row in one table will actually trigger deletions on all dependent rows?
+
+_Answer:_
+
+Yes. If a `NO ACTION` foreign-key constraint is violated anywhere during the cascade, SQLite aborts the entire `DELETE` statement. It rolls back the parent deletion and any cascaded row deletions triggered by that statement, so you don’t get a partial cascade. [SQLite’s foreign-key documentation](https://www.sqlite.org/foreignkeys.html) describes this behavior.
+
+You don’t need to add an explicit transaction just to make that single DELETE statement atomic. The statement itself is atomic, including its cascades. Use an explicit transaction when the operation involves multiple statements that must succeed or fail together—for example, deleting rows in application-controlled steps and then deleting the module.
+
+### Lesson 7
+
+_Practice:_
+
+- Which step creates SQL
+
+  `npm run db:generate`
+
+- Which step changes the database
+
+  `npm run db:migrate`
+
+- What application behavior is still missing after the migration?
+
+  Use the updated database schema in the application to update UI components accordingly.
+
 ## Codex Context window customization
 
 `~/.codex/config.toml`

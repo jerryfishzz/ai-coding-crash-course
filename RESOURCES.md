@@ -16,8 +16,10 @@
 - [React Router: `useFetcher`](https://reactrouter.com/api/hooks/useFetcher) — official reference for submissions that interact with route actions without navigating.
 - [Drizzle ORM: SQLite](https://orm.drizzle.team/docs/get-started-sqlite) — official setup and query overview for SQLite drivers, including `better-sqlite3`.
 - [Drizzle ORM: Insert](https://orm.drizzle.team/docs/insert) — official guide to SQL-like inserts and returned rows.
+- [Drizzle ORM: Transactions](https://orm.drizzle.team/docs/transactions) — official overview of grouping database statements so they commit or roll back together.
 - [Drizzle Kit: Migrations](https://orm.drizzle.team/docs/migrations) — official overview of code-first and database-first migration workflows.
 - [Drizzle Kit: Generate](https://orm.drizzle.team/docs/drizzle-kit-generate) — how schema diffs become SQL migration files.
+- [Drizzle Kit: Migrate](https://orm.drizzle.team/docs/drizzle-kit-migrate) — how unapplied SQL migrations are applied and tracked.
 - [SQLite: Foreign Key Support](https://www.sqlite.org/foreignkeys.html) — primary reference for relational integrity constraints in SQLite.
 
 ## Further exploration
