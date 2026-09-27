@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Delete rules — repo reference</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Delete rules and foreign keys</h1>
+  <div class="map">Service rule → friendly domain error<br>Foreign key → database integrity guard<br><code>ON DELETE CASCADE</code> → delete dependents automatically<br><code>ON DELETE NO ACTION</code> → reject parent delete while dependents exist</div>
+  <p><strong>Category example:</strong> <code>categories</code> is the parent; <code>courses.categoryId</code> is the child reference.</p>
+  <ul>
+    <li><a href="../app/services/categoryService.ts">Service</a> counts dependent courses and throws a readable error.</li>
+    <li><a href="../app/db/schema.ts">Schema</a> declares the foreign key.</li>
+    <li><a href="../app/db/index.ts">Connection</a> enables SQLite FK enforcement.</li>
+  </ul>
+  <p><a href="../lessons/0005-application-rules-and-foreign-keys.html">Return to Lesson 05</a></p>
+</main>
+</body>
+</html>

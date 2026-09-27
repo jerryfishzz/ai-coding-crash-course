@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Application rules and foreign keys</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 05 · 5 minutes</p>
+  <h1>Application rules and foreign keys</h1>
+  <p class="dek">Category deletion shows two layers protecting the same relationship: the service explains the business rule; the database preserves referential integrity even if a caller bypasses that service path.</p>
+
+  <h2>Follow the delete request</h2>
+  <div class="map"><a href="../app/routes/admin.categories.tsx">Delete button</a> → <code>deleteFetcher.submit</code> → authorized route <code>action</code> → <a href="../app/services/categoryService.ts"><code>deleteCategory</code></a> counts courses → if none, Drizzle deletes category → <a href="../app/db/schema.ts">SQLite foreign key</a> protects references</div>
+
+  <p>The route action checks that the current user is an admin, validates the delete intent and category ID, then calls <code>deleteCategory</code>. If the service throws, the action returns an error message; the UI displays it. That gives the user a useful explanation such as “2 courses use this category.”</p>
+
+  <p>The service checks <code>courses.categoryId</code> for references before deleting. This is an application-level rule: it can explain why deletion is refused. The schema also declares <code>courses.categoryId</code> as a foreign key referencing <code>categories.id</code>. Its migration uses <code>ON DELETE no action</code>, so SQLite rejects a delete that would leave courses pointing at a missing category. This project enables SQLite foreign-key enforcement with <code>PRAGMA foreign_keys = ON</code> when opening the connection.</p>
+
+  <p class="takeaway"><strong>Two layers, different jobs:</strong> the service guard gives a friendly domain error; the foreign key is the final integrity rule. SQLite documents that a parent row cannot be deleted while dependent child rows remain when foreign keys are enabled. See <a href="https://www.sqlite.org/foreignkeys.html">SQLite’s foreign-key guide</a>.</p>
+
+  <h2>Quick recall</h2>
+  <p>If code bypassed <code>deleteCategory</code>, what still prevents orphaned courses?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="correct" data-correct-message="Right: with foreign keys enabled, SQLite refuses to remove a referenced parent category." data-wrong-message="The service guard is bypassed in this scenario. Look at courses.categoryId in the schema and PRAGMA foreign_keys in app/db/index.ts.">Database foreign key blocks it</button>
+    <button data-answer="wrong" data-correct-message="Right: with foreign keys enabled, SQLite refuses to remove a referenced parent category." data-wrong-message="That check normally gives a friendly explanation, but the question bypasses the service. The database foreign key is the backstop.">Service count query blocks it</button>
+    <button data-answer="wrong" data-correct-message="Right: with foreign keys enabled, SQLite refuses to remove a referenced parent category." data-wrong-message="The UI may submit the request, but it cannot guarantee data integrity if another code path writes directly. The database foreign key does.">React component state blocks it</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Small architecture lesson</h2>
+  <p>Use application checks for domain-specific messages and early feedback. Keep database constraints because other code paths, scripts, or future changes may bypass the service. Here the category and course relationship already exists, so deletion needs no migration; a new constraint or changed delete policy would.</p>
+
+  <p>For practice, compare this with a foreign key you might expect from <code>lessons.moduleId</code> to <code>modules.id</code>. Ask me if you want to trace that relationship or explore what cascade deletion would mean.</p>
+  <footer>
+    <p><a href="0004-trace-a-database-write.html">Previous lesson: trace a database write</a> · <a href="../reference/delete-and-foreign-keys.html">Foreign-key reference</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>

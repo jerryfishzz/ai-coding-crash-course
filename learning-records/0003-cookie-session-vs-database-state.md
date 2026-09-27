@@ -24,4 +24,4 @@ When a feature persists a domain fact, choose the table and service that own tha
 
 ## Next practice
 
-Trace a route action that creates a durable database record. Identify the form, validation, service, table, and migration history before proposing a change.
+Next: trace category creation as a database write. Identify the form, validation, service, table, and constraints. Distinguish inserting a row from changing the schema with a migration.
