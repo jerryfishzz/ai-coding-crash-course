@@ -202,8 +202,6 @@ It’s useful, but not strictly necessary if the test’s only concern is “the
 
 ### Lesson 9
 
-## Codex Context window customization
-
 My answer to assertions for three policies at the end of the lesson:
 
 - Restrict
@@ -236,6 +234,22 @@ With archive policy, is it good to implement the filter on query level or on the
 Answer:
 
 Usually both. Keep the policy centralized in query/service functions, and use UI logic for presentation.
+
+### Lesson 10
+
+For the practice at the end of the lesson:
+
+1. 401 for authentication failures.
+2. 403 for authorization failures.
+3. 400 for bad requests.
+
+The order follow the common sense. First, check for authentication since we don't want to handle unsolicited requests from unauthenticated users. Then, check for authorization to ensure the user has the necessary permissions. Finally, validate the request data to catch any bad requests.
+
+_Question:_
+
+You said "Route actions are server-side mutation handlers in React Router’s framework model". From the React Router documentation, it says "Client actions only run in the browser and take priority over a server action when both are defined". In the example of `admin.categories.tsx`, the `action` function is a server-side action. It is invoked when the corresponding route receives a matching request, defined in the route configuration `route("admin/categories", "routes/admin.categories.tsx")`. I am wondering, how does this interact with client actions if they are also defined for the same route? I don't know React Router very much. I am just curious since the documentation talks about priority but doesn't explain the exact interaction in practice. I guess since this is a full-stack project, the `action` will work when the request reaches the server side while the hypothesis `clientAction`, if it exists, will run on the browser if there are some specific requirements on the front-end to deal with. The `clientAction` will replace `action`, but only on browser. When the request goes to the server, the server-side `action` will still be invoked. Am I right?
+
+## Codex Context window customization
 
 `~/.codex/config.toml`
 
