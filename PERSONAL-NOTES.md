@@ -177,7 +177,65 @@ _Practice:_
 
   Use the updated database schema in the application to update UI components accordingly.
 
+### Lesson 8
+
+`createTestDb` creates an in-memory test database instance that use the same setup as the main database. This instance can be used for running isolated tests without affecting the actual development or production database.
+
+The module-delete test when progress exists will throw and error, preventing the deletion of the module. The module can still be found in the database after the failed deletion attempt.
+
+_Question:_
+
+In your test example, what does this try to validate?
+
+```ts
+expect(testDb.select().from(schema.lessons).all())
+  .toContainEqual(expect.objectContaining({ id: lesson.id }));
+```
+
+Is it necessary?
+
+_Answer:_
+
+That assertion verifies the lesson row still exists after `deleteModule` throws. It complements the assertion that the module still exists: together, they check that neither row was deleted when the foreign-key constraint blocked the operation.
+
+It’s useful, but not strictly necessary if the test’s only concern is “the module wasn’t deleted.” Since the lesson is the row whose deletion fails, checking that it remains makes the expected database state clearer. You could also assert its exact ID with a `find`/`some` check; `objectContaining` just lets the assertion match the relevant field without comparing every column.
+
+### Lesson 9
+
 ## Codex Context window customization
+
+My answer to assertions for three policies at the end of the lesson:
+
+- Restrict
+
+  1. Check the deletion itself throws an error
+  2. Check that the related rows are not deleted
+
+- Archive
+
+  1. Check the archive action updates related rows accordingly with the archived marker
+  2. If the query filters archived rows, ensure the archived rows are correctly included or excluded based on the filter afterwards; if the query doesn't include the logic, check the UI behavior to confirm archived rows are handled appropriately.
+
+- Cascade
+
+  1. Check the cascade action deletes related rows accordingly.
+  2. When checking unrelated rows, it is good to use counts to ensure their number remains consistent before and after the cascade deletion.
+
+  _Question:_
+
+  You said "also verify a specific unrelated row remains, so the test confirms the cascade’s scope — not just the total number of rows". I wonder how. Do you mean when we create a test, we also create the unrelated row explicitly and then check that it still exists after the cascade deletion?
+
+  _Answer:_
+
+  Yes
+
+_Question:_
+
+With archive policy, is it good to implement the filter on query level or on the UI level, or implement on both?
+
+Answer:
+
+Usually both. Keep the policy centralized in query/service functions, and use UI logic for presentation.
 
 `~/.codex/config.toml`
 

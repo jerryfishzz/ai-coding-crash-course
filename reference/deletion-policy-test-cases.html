@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deletion-policy test matrix</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Deletion policy test matrix</h1>
+  <p>Start with a module that has a lesson, progress, quiz attempt, and watch event. Query the isolated test database after the operation.</p>
+  <div class="map">RESTRICT: error + module/lesson/history remain<br>ARCHIVE: module archived + history remains + listing filters verified<br>CASCADE: intended descendants gone + unrelated rows remain</div>
+  <ol>
+    <li>Test the externally visible contract, not just an implementation detail.</li>
+    <li>Assert important state after both success and failure.</li>
+    <li>Include a nearby unrelated record to guard against overbroad deletes.</li>
+    <li>For archive, test write behavior and normal/admin read behavior separately.</li>
+    <li>For cascade, verify all intended FK descendants and ensure no undeclared relationship remains blocking deletion.</li>
+  </ol>
+  <p><a href="../lessons/0009-test-a-deletion-policy.html">Return to Lesson 09</a></p>
+</main>
+</body>
+</html>

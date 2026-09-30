@@ -21,6 +21,7 @@
 - [Drizzle Kit: Generate](https://orm.drizzle.team/docs/drizzle-kit-generate) — how schema diffs become SQL migration files.
 - [Drizzle Kit: Migrate](https://orm.drizzle.team/docs/drizzle-kit-migrate) — how unapplied SQL migrations are applied and tracked.
 - [SQLite: Foreign Key Support](https://www.sqlite.org/foreignkeys.html) — primary reference for relational integrity constraints in SQLite.
+- [Vitest: Testing in Practice](https://vitest.dev/guide/learn/testing-in-practice) — structuring focused tests around setup, behavior, and assertions.
 
 ## Further exploration
 

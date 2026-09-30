@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Turn deletion policy into tests</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 09 · 6 minutes</p>
+  <h1>Turn deletion policy into tests</h1>
+  <p class="dek">A test is a precise statement of product behavior. The same “delete module” request should have different assertions depending on whether history is restricted, archived, or cascaded.</p>
+
+  <h2>Same starting data, different promises</h2>
+  <p>Arrange a module with a lesson, a progress row, a quiz attempt, and a video-watch event. Those rows represent learner history in this repo. Perform the chosen operation, then check the rows that matter—not only whether the service returned without throwing.</p>
+  <div class="map">Restrict → deletion refused; all history remains<br>Archive → module marked archived; history remains; normal listing hides it<br>Cascade → module and intended descendants are removed</div>
+
+  <h2>Translate the promise to assertions</h2>
+  <ul>
+    <li><strong>Restrict:</strong> expect the service/action to refuse deletion with a useful reason. Query afterward and prove the module, lesson, progress, quiz attempt, and event remain.</li>
+    <li><strong>Archive:</strong> expect the archived marker to be set. Prove lesson/history rows remain. Also test the read behavior: ordinary course listings omit the module, while an admin/history query can still find it if that is the chosen design.</li>
+    <li><strong>Cascade:</strong> expect successful deletion. Query afterward and prove the module and each intended dependent row are gone. Also prove unrelated data—such as another module’s lesson/history—remains.</li>
+  </ul>
+  <p>This is a contract test: it captures what callers and learners should observe. Vitest recommends focusing tests on behavior; SQLite applies foreign-key actions along declared relationships. See <a href="https://vitest.dev/guide/learn/testing-in-practice">Vitest testing in practice</a> and <a href="https://www.sqlite.org/foreignkeys.html">SQLite foreign-key actions</a>.</p>
+
+  <p class="takeaway"><strong>Test both what changes and what must not change.</strong> “Delete succeeded” alone cannot tell you whether important history disappeared—or whether unrelated records were accidentally removed.</p>
+
+  <h2>Quick recall</h2>
+  <p>For a cascade-delete policy, what should a test check besides successful completion?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="wrong" data-correct-message="Exactly: inspect intended descendants and nearby unrelated rows to prove the cascade's scope." data-wrong-message="A successful return does not prove the right rows were removed or preserved.">Only that no error was thrown</button>
+    <button data-answer="correct" data-correct-message="Exactly: inspect intended descendants and nearby unrelated rows to prove the cascade's scope." data-wrong-message="Check the data state: intended descendants should be gone, and unrelated rows should remain.">Expected descendants are gone, unrelated rows remain</button>
+    <button data-answer="wrong" data-correct-message="Exactly: inspect intended descendants and nearby unrelated rows to prove the cascade's scope." data-wrong-message="The configured cascade is database behavior; tests should verify the resulting rows, not just the schema declaration.">The migration file contains CASCADE</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Practice</h2>
+  <p>Pick one policy—not because we have chosen it for the product, but to practise. For a module with one lesson, progress, quiz attempt, and watch event, state: (1) what happens to each row, and (2) one nearby row that should remain unchanged. Then turn those statements into assertions.</p>
+  <p>Ask me about any part. See the <a href="../reference/deletion-policy-test-cases.html">deletion-policy test matrix</a>, or revisit <a href="0008-test-foreign-key-behavior.html">Lesson 08</a>.</p>
+  <footer>
+    <p><a href="0008-test-foreign-key-behavior.html">Previous lesson: test foreign-key behavior safely</a> · <a href="../reference/deletion-policy-test-cases.html">Deletion-policy test matrix</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>

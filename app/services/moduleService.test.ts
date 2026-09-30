@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createTestDb, seedBaseData } from "~/test/setup";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as schema from "~/db/schema";
+import { createTestDb, seedBaseData } from "~/test/setup";
 
 let testDb: ReturnType<typeof createTestDb>;
 let base: ReturnType<typeof seedBaseData>;
@@ -12,19 +12,19 @@ vi.mock("~/db", () => ({
 }));
 
 // Import after mock so the module picks up our test db
+import { createLesson } from "./lessonService";
 import {
+  createModule,
+  deleteModule,
   getModuleById,
+  getModuleCount,
   getModulesByCourse,
   getModuleWithLessons,
-  createModule,
-  updateModuleTitle,
-  deleteModule,
-  getModuleCount,
   moveModuleToPosition,
-  swapModulePositions,
   reorderModules,
+  swapModulePositions,
+  updateModuleTitle,
 } from "./moduleService";
-import { createLesson } from "./lessonService";
 
 describe("moduleService", () => {
   beforeEach(() => {
@@ -131,6 +131,25 @@ describe("moduleService", () => {
       expect(deleted!.id).toBe(mod.id);
 
       expect(getModuleById(mod.id)).toBeUndefined();
+    });
+
+    it("deletes a module and its lessons while lessons have dependent progress", () => {
+      const mod = createModule(base.course.id, "History", 1);
+      const lesson = createLesson(mod.id, "Lesson 1", null, null, 1, null);
+      testDb
+        .insert(schema.lessonProgress)
+        .values({
+          userId: base.user.id,
+          lessonId: lesson.id,
+          status: schema.LessonProgressStatus.InProgress,
+        })
+        .run();
+
+      expect(() => deleteModule(mod.id)).toThrow();
+      expect(getModuleById(mod.id)).toBeDefined();
+      expect(testDb.select().from(schema.lessons).all()).toContainEqual(
+        expect.objectContaining({ id: lesson.id })
+      );
     });
   });
 

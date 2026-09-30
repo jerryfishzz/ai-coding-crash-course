@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test foreign-key behavior safely</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 08 · 6 minutes</p>
+  <h1>Test foreign-key behavior safely</h1>
+  <p class="dek">A database rule is worth testing against a real SQLite engine. This repo already has an isolated, in-memory test database that uses the same migrations as the app.</p>
+
+  <h2>Find the safety boundary</h2>
+  <p><a href="../app/test/setup.ts"><code>createTestDb</code></a> opens SQLite with <code>:memory:</code>, enables <code>PRAGMA foreign_keys = ON</code>, and applies the project’s <code>drizzle/</code> migrations. Service tests replace the normal database import with this fresh test database. They don’t delete rows from your working <code>data.db</code>.</p>
+  <p>For module deletion, the current schema says <code>lessons.moduleId</code> references <code>modules.id</code>, while progress rows also reference lessons. The existing <a href="../app/services/moduleService.test.ts"><code>moduleService.test.ts</code></a> tests deleting a module with lessons but no history. A useful complementary case adds lesson progress first.</p>
+
+  <h2>Arrange → act → assert</h2>
+  <div class="map">Arrange: module + lesson + progress row<br>Act: call deleteModule(module.id)<br>Assert: FK error; module and lesson still exist</div>
+  <pre><code>// Sketch in moduleService.test.ts; use its existing testDb/base helpers
+const mod = createModule(base.course.id, "History", 1);
+const lesson = createLesson(mod.id, "Lesson 1", null, null, 1, null);
+testDb.insert(schema.lessonProgress).values({
+  userId: base.user.id,
+  lessonId: lesson.id,
+  status: schema.LessonProgressStatus.InProgress,
+}).run();
+
+expect(() =&gt; deleteModule(mod.id)).toThrow();
+expect(getModuleById(mod.id)).toBeDefined();
+expect(testDb.select().from(schema.lessons).all())
+  .toContainEqual(expect.objectContaining({ id: lesson.id }));</code></pre>
+  <p>This test documents what the current policy does: learner progress blocks deleting that lesson, so the service throws and does not reach the module delete. Another test could assert the error message after the route/service is improved. Keep each test focused on one behavior. See Vitest’s official guide to <a href="https://vitest.dev/guide/learn/testing-in-practice">structuring tests</a>.</p>
+
+  <p class="takeaway"><strong>Use the same migrations and enable the same constraints.</strong> Otherwise, a test database can quietly behave differently from the real app. A fresh in-memory database makes it safe to try both the blocked-delete policy and a future archive/cascade policy.</p>
+
+  <h2>Quick recall</h2>
+  <p>Why is this test safer than experimenting against <code>data.db</code>?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="wrong" data-correct-message="Right: :memory: creates an isolated database; the test setup also applies the real migrations and enables foreign keys." data-wrong-message="The lesson deliberately uses a separate database connection, not the working data.db file.">It rolls back the real database</button>
+    <button data-answer="correct" data-correct-message="Right: :memory: creates an isolated database; the test setup also applies the real migrations and enables foreign keys." data-wrong-message="Read createTestDb in app/test/setup.ts: it opens SQLite with :memory: and applies the migrations.">It creates a fresh in-memory database</button>
+    <button data-answer="wrong" data-correct-message="Right: :memory: creates an isolated database; the test setup also applies the real migrations and enables foreign keys." data-wrong-message="The foreign-key pragma enables constraints; isolation comes from the separate in-memory database.">It disables foreign-key checks</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Practice</h2>
+  <p>In your own words: what does <code>createTestDb</code> do that makes the test realistic, and what makes it isolated? Then predict what the module-delete test should assert when progress exists. No need to edit or run a test yet.</p>
+  <p>Ask me about any part. See the <a href="../reference/testing-database-rules.html">database-test reference</a>, or return to <a href="0007-from-schema-change-to-migration.html">Lesson 07</a>.</p>
+  <footer>
+    <p><a href="0007-from-schema-change-to-migration.html">Previous lesson: from schema change to migration</a> · <a href="../reference/testing-database-rules.html">Database-test reference</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>

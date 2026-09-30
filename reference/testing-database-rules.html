@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test database rules</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Test database rules safely</h1>
+  <div class="map">Arrange related rows → perform the service operation → assert both the error/result and the persisted state</div>
+  <ol>
+    <li>Use <code>createTestDb()</code> from <code>app/test/setup.ts</code>; it opens an SQLite <code>:memory:</code> database.</li>
+    <li>Keep tests realistic: this helper enables foreign keys and applies the actual <code>drizzle/</code> migrations.</li>
+    <li>Set up the exact dependency (for module deletion, create a lesson-progress row).</li>
+    <li>Call the service and assert the contract: expected error or success.</li>
+    <li>Query the test database to assert what remains. Do not infer persisted state from the thrown error alone.</li>
+  </ol>
+  <p>A blocked deletion should leave its parent and children intact. A future archive test should prove rows remain but ordinary listings hide the archived module. A cascade test should prove only intended descendants are removed.</p>
+  <p><a href="https://vitest.dev/guide/learn/testing-in-practice">Vitest: testing in practice</a></p>
+  <p><a href="../lessons/0008-test-foreign-key-behavior.html">Return to Lesson 08</a></p>
+</main>
+</body>
+</html>
