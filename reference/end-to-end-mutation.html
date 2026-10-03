@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trace a mutation end to end</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Trace a mutation end to end</h1>
+  <div class="map">UI intent + fields → route identity/permission/validation → service operation → database state → loader revalidation → UI</div>
+  <ol>
+    <li>Find the UI handler and the exact submitted fields/intent.</li>
+    <li>Find the route module and action selected by the request.</li>
+    <li>Trace authentication, role, object ownership, nested-resource checks, and validation.</li>
+    <li>Follow the service call to its Drizzle query and table.</li>
+    <li>Check the response path and how the UI reflects the changed data.</li>
+    <li>Choose tests at the boundaries: service contract, route authorization, UI interaction as needed.</li>
+  </ol>
+  <p><a href="../lessons/0013-trace-a-mutation-end-to-end.html">Return to Lesson 13</a></p>
+</main>
+</body>
+</html>

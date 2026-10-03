@@ -273,6 +273,30 @@ For the practice at the end of Lesson 12:
 - One database assertion should be module B remains the same. But I am not sure the other one. Do you mean the other is if course A should also remain the same. Yes I think so.
 - One allowed request is instructor A modify course A with module A ID.
 
+### Lesson 13
+
+For the practice at the end of Lesson 13:
+
+- UI submit: check if input is empty or same as the previous value. If it is empty or no changes, then no submission. If no submission, the component state doesn't change. So the input will still keep the same as before.
+
+- Route checks: if the UI submit passed, it will go to route check.
+
+  1. Check user authentication
+  2. Check the user authorization on the course
+  3. Validate the request data through Zod schema
+  4. Go to the submission branch by `intent`. Check if the modified module actually belongs to the course being edited.
+  5. Perform the submission
+
+- Service/database write: run `updateModuleTitle` from `moduleService.ts`. This will return the updated module object if the update is successful.
+
+- UI update afterwards: the successful update will return `{ success: true, field: "module" }`. I know it will trigger `loader` to update. But I don't know how it only update module title section but not the full page.
+
+- One test is `updateModuleTitle` in `moduleService.test.ts`. Looks like there is not tests for routes and UI in the project yet.
+
+_Answer:_
+
+**Empty input nuance:** the displayed title remains the old value because read mode renders the `value` prop. But `editValue` stays empty, so reopening the editor may show an empty input until the value changes or Cancel resets it. That looks like a small UX edge case in the current component.
+
 ## Codex Context window customization
 
 `~/.codex/config.toml`
