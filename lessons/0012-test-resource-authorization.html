@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test resource authorization</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 12 · 6 minutes</p>
+  <h1>Test resource authorization</h1>
+  <p class="dek">A useful access-control test uses two users and two resources. It proves both that the right owner can act and that changing an ID cannot cross the ownership boundary.</p>
+
+  <h2>Arrange two separate ownership branches</h2>
+  <div class="map">Instructor A → Course A → Module A<br>Instructor B → Course B → Module B</div>
+  <p>The course editor action checks the caller’s role and course ownership. For module operations, it also checks that the module belongs to the course in the route. These checks lead to two different denial cases.</p>
+
+  <h2>Two requests, two guards</h2>
+  <ol>
+    <li><strong>Wrong course:</strong> Instructor A posts to <code>/instructor/Course-B</code>. The course exists, but belongs to B, so the action returns 403 before mutation.</li>
+    <li><strong>Wrong module:</strong> Instructor A posts to their own <code>/instructor/Course-A</code>, but changes the submitted <code>moduleId</code> to Module B. Course ownership passes; the module/course relationship check rejects it with 404. Module B remains unchanged.</li>
+    <li><strong>Allowed case:</strong> Instructor A edits Module A. Verify the expected write succeeds.</li>
+  </ol>
+  <p>Test the denied outcome and persisted state. A 403/404 alone is not enough if a bug performed the write before returning. OWASP recommends testing with multiple accounts and attempting to substitute another user’s object identifier: <a href="https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html">IDOR prevention guidance</a>.</p>
+
+  <h2>Fit it to this repo</h2>
+  <p><a href="../app/test/setup.ts"><code>createTestDb</code></a> already provides isolated SQLite with real migrations, and <code>app/services/*.test.ts</code> replaces the app DB import with that test database. The repo currently has service tests but no direct course-editor action test. A route test would additionally need to send an authenticated session cookie (the route reads identity from the session) and submit valid form data, so it exercises the actual action guards.</p>
+  <p class="takeaway"><strong>Test permissions as a matrix:</strong> allowed role + owned resource succeeds; allowed role + someone else’s resource is denied; correct course + wrong child ID is denied; denied attempts leave stored data unchanged.</p>
+
+  <h2>Quick recall</h2>
+  <p>Why test the database state after a 403 or 404 response?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="wrong" data-correct-message="Right: the state assertion proves the denied request did not mutate data before returning its error." data-wrong-message="A response code describes the result, but a separate state assertion proves no write slipped through.">To confirm the route used the right status</button>
+    <button data-answer="correct" data-correct-message="Right: the state assertion proves the denied request did not mutate data before returning its error." data-wrong-message="A handler could accidentally write first and return an error afterward; inspect persisted data too.">To prove the denied request made no write</button>
+    <button data-answer="wrong" data-correct-message="Right: the state assertion proves the denied request did not mutate data before returning its error." data-wrong-message="A database constraint usually cannot know the current session’s ownership permissions.">Because the foreign key checks the session</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Practice</h2>
+  <p>For Instructor A submitting Module B’s ID while editing Course A, state the expected response and two database assertions. Then name one allowed request that should still succeed.</p>
+  <p>Ask me about any part. See the <a href="../reference/resource-authorization-tests.html">authorization-test matrix</a>, or revisit <a href="0011-authorize-the-resource.html">Lesson 11</a>.</p>
+  <footer>
+    <p><a href="0011-authorize-the-resource.html">Previous lesson: authorize the resource, not just the role</a> · <a href="../reference/resource-authorization-tests.html">Authorization-test matrix</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>

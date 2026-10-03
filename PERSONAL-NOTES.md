@@ -265,6 +265,14 @@ _Answer:_
 
 Yes, like Postman.
 
+### Lesson 12
+
+For the practice at the end of Lesson 12:
+
+- It should return 404 error
+- One database assertion should be module B remains the same. But I am not sure the other one. Do you mean the other is if course A should also remain the same. Yes I think so.
+- One allowed request is instructor A modify course A with module A ID.
+
 ## Codex Context window customization
 
 `~/.codex/config.toml`

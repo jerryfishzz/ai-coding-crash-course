@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resource-authorization test matrix</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Test resource authorization</h1>
+  <div class="map">A owns A → allow<br>A targets B's course → 403<br>A targets own course + B's module ID → 404<br>Denied request → no persisted change</div>
+  <ol>
+    <li>Create two users with instructor roles and separate courses/modules.</li>
+    <li>Authenticate each request as the intended user; never pass the user ID as trusted form data.</li>
+    <li>Test a permitted owner request and verify the intended change.</li>
+    <li>Test a cross-owner course request and a mismatched child-resource ID.</li>
+    <li>For every denial, query the isolated database and verify the target row is unchanged.</li>
+  </ol>
+  <p>For this repo, direct action tests should provide a valid cookie session and valid form payload so the request reaches the authorization branch under test.</p>
+  <p><a href="../lessons/0012-test-resource-authorization.html">Return to Lesson 12</a></p>
+</main>
+</body>
+</html>
