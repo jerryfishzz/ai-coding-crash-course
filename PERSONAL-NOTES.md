@@ -297,6 +297,23 @@ _Answer:_
 
 **Empty input nuance:** the displayed title remains the old value because read mode renders the `value` prop. But `editValue` stays empty, so reopening the editor may show an empty input until the value changes or Cancel resets it. That looks like a small UX edge case in the current component.
 
+### Lesson 14
+
+For the practice at the end of Lesson 14:
+
+The rule is checked in `loader`.
+
+In `action`, it should check if the course is published after checking the existence of the course as it does in `loader`. If not published, it should return a 404 error.
+
+A test for this missing check should be:
+
+- Expect a 404 if the course is not published.
+- Make sure the purchase table doesn't have the row with the current userId and the courseId of the unpublished course.
+- Make sure the enrolment table doesn't have the row with the current userId and the courseId of the unpublished course.
+- If it is a team purchase, make sure no coupon is created.
+
+I first thought since it throws when the course is not published and the code stops running - no submission happened, no need to validate no row insertions in the database for the unpublished course. But then I realized that this assumption was probably too case specific. If the code changes in the future to handle errors differently, this assumption probably wouldn't validate what we expect and could lead to false positives in the tests. So I decided we still need to do no row creation happened check. It's the general core of this validation logic despite the current implementation specifics.
+
 ## Codex Context window customization
 
 `~/.codex/config.toml`

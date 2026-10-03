@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A loader is not a write guard</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 14 · 6 minutes</p>
+  <h1>A loader is not a write guard</h1>
+  <p class="dek">A loader decides what to show for a page request. An action handles a separate mutation request. Rules needed to protect a write must be checked in the action too.</p>
+
+  <h2>Compare the purchase route’s two paths</h2>
+  <p>In <a href="../app/routes/courses.$slug.purchase.tsx"><code>courses.$slug.purchase.tsx</code></a>, the loader finds the course and returns 404 if it is not published. It then handles login/enrollment redirects and prepares the purchase page.</p>
+  <p>The action is invoked separately when the confirmation form is submitted. It parses the course slug, finds the course, checks login, validates the intent, and calculates the price on the server. In the current code, it does <em>not</em> repeat the published-status check before creating the purchase/enrollment.</p>
+  <div class="map">GET page → loader checks: course exists + Published<br>POST confirmation → action checks: course exists + logged in + valid intent<br>Question: does the action enforce every business rule needed before it writes?</div>
+
+  <h2>Why this matters</h2>
+  <p>The normal UI won’t show a confirmation page for a draft course. But a route action is still a server entry point: a client can submit a crafted POST directly without first following the normal page flow. The loader’s earlier 404 does not run as a prerequisite to every action request. React Router treats loaders and actions as distinct route handlers; see the official <a href="https://reactrouter.com/start/framework/actions">actions guide</a>.</p>
+  <p>For a published-only purchase rule, the action should enforce that invariant itself before inserting anything. This is a code-review finding to verify against the product requirement—not a change made by this lesson. Notice one good pattern nearby: the action recalculates the regional price on the server rather than trusting a price submitted by the browser.</p>
+  <p class="takeaway"><strong>Protect the operation where it happens.</strong> A page-level loader can improve navigation and user experience; it cannot be the only guard for a server-side write.</p>
+
+  <h2>Quick recall</h2>
+  <p>If the loader rejects draft courses, what still needs to enforce “only published courses can be purchased”?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="wrong" data-correct-message="Right: a direct POST can reach the action without first loading the page, so the action must guard the write." data-wrong-message="A direct POST can bypass the page loader; don't rely on a check that may not run for the mutation request.">The loader alone blocks draft purchases before any action</button>
+    <button data-answer="correct" data-correct-message="Right: a direct POST can reach the action without first loading the page, so the action must guard the write." data-wrong-message="The action is the mutation boundary. It must enforce the business rule before writing.">The action checks the course status before it writes</button>
+    <button data-answer="wrong" data-correct-message="Right: a direct POST can reach the action without first loading the page, so the action must guard the write." data-wrong-message="The browser displays the form, but it does not control every request sent to the route.">The browser hides its button for draft course purchase</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Practice</h2>
+  <p>Assume the product rule is “only published courses can be purchased.” In the current route, where is that rule checked, and what check is missing from the action? Sketch one test using a draft course that proves the action creates neither a purchase nor an enrollment.</p>
+  <p>Ask me about any part. See the <a href="../reference/loader-vs-action-guards.html">loader/action guard checklist</a>, or revisit <a href="0013-trace-a-mutation-end-to-end.html">Lesson 13</a>.</p>
+  <footer>
+    <p><a href="0013-trace-a-mutation-end-to-end.html">Previous lesson: trace a mutation end to end</a> · <a href="../reference/loader-vs-action-guards.html">Loader/action guard checklist</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>
