@@ -22,6 +22,7 @@
 - [Drizzle Kit: Migrate](https://orm.drizzle.team/docs/drizzle-kit-migrate) — how unapplied SQL migrations are applied and tracked.
 - [SQLite: Foreign Key Support](https://www.sqlite.org/foreignkeys.html) — primary reference for relational integrity constraints in SQLite.
 - [Vitest: Testing in Practice](https://vitest.dev/guide/learn/testing-in-practice) — structuring focused tests around setup, behavior, and assertions.
+- [OWASP: Insecure Direct Object Reference Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html) — object-level permission checks for resources identified by request parameters.
 
 ## Further exploration
 

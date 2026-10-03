@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authorize the resource, not just the role</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 11 · 6 minutes</p>
+  <h1>Authorize the resource, not just the role</h1>
+  <p class="dek">“Is this person an instructor?” is not enough. For a course mutation, the server must also ask whether this instructor is allowed to edit this particular course.</p>
+
+  <h2>Two layers of authorization in the course editor</h2>
+  <p>In <a href="../app/routes/instructor.$courseId.tsx"><code>instructor.$courseId.tsx</code></a>, both the loader and action check that the user is an instructor or admin. The action then looks up the route’s course ID and checks ownership:</p>
+  <div class="map">role allowed?<br>AND<br>(course.instructorId === currentUserId OR user.role === Admin)</div>
+  <p>An instructor can edit their own course. An admin can edit any course. Another instructor gets 403 even if they manually change <code>/instructor/12</code> to <code>/instructor/13</code>. Checking only the broad role would leave an object-level authorization gap, commonly called IDOR (insecure direct object reference). OWASP recommends checking permission for the specific object on every access attempt: <a href="https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html">IDOR prevention guidance</a>.</p>
+
+  <h2>Nested IDs need their own relationship check</h2>
+  <p>The action also accepts IDs for modules and lessons. Before renaming or deleting a module, it loads that module and verifies <code>mod.courseId === courseId</code>. Otherwise a user might submit the ID of a module from a different course. The parent course check and child-to-parent check protect different relationships.</p>
+  <p>The action checks the user role, parses the course route parameter, loads the course, and checks ownership before reading/validating the form and calling a write service. Every route that exposes or mutates a resource needs the appropriate object-level check; a check in one page does not protect another action.</p>
+  <p class="takeaway"><strong>Authorization is about subject + action + resource.</strong> “Instructor” says who the caller is; ownership says whether they may edit this course; the module/course check says whether this child ID belongs in this operation.</p>
+
+  <h2>Quick recall</h2>
+  <p>An instructor owns course 21 and submits a valid rename request to <code>/instructor/22</code>, owned by someone else. What should the action do?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="wrong" data-correct-message="Correct: a valid instructor role is not enough; the owner check must reject access to another instructor's course." data-wrong-message="The route also checks course ownership. A role alone does not grant access to every course.">Allow it because the role is instructor</button>
+    <button data-answer="correct" data-correct-message="Correct: a valid instructor role is not enough; the owner check must reject access to another instructor's course." data-wrong-message="The caller has the right general role, but does not own this course; the route should return 403 before writing.">Return 403 before the write</button>
+    <button data-answer="wrong" data-correct-message="Correct: a valid instructor role is not enough; the owner check must reject access to another instructor's course." data-wrong-message="The course exists, so 404 is not the authorization result in this code. The owner mismatch returns 403.">Return 404 because ID is numeric</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Practice</h2>
+  <p>The normal UI only offers modules from the selected course. A tool such as Postman can send a handcrafted request instead: instructor A submits an authenticated request for their own course, but changes <code>moduleId</code> to point to instructor B’s module. Which server-side checks should stop the write? (Without a valid session, the request should fail earlier with 401.) Why isn’t checking course ownership alone enough?</p>
+  <p>Ask me about any part. See the <a href="../reference/resource-authorization.html">resource-authorization checklist</a>, or revisit <a href="0010-route-actions-as-trust-boundaries.html">Lesson 10</a>.</p>
+  <footer>
+    <p><a href="0010-route-actions-as-trust-boundaries.html">Previous lesson: route actions are trust boundaries</a> · <a href="../reference/resource-authorization.html">Resource-authorization checklist</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>

@@ -249,6 +249,22 @@ _Question:_
 
 You said "Route actions are server-side mutation handlers in React Router’s framework model". From the React Router documentation, it says "Client actions only run in the browser and take priority over a server action when both are defined". In the example of `admin.categories.tsx`, the `action` function is a server-side action. It is invoked when the corresponding route receives a matching request, defined in the route configuration `route("admin/categories", "routes/admin.categories.tsx")`. I am wondering, how does this interact with client actions if they are also defined for the same route? I don't know React Router very much. I am just curious since the documentation talks about priority but doesn't explain the exact interaction in practice. I guess since this is a full-stack project, the `action` will work when the request reaches the server side while the hypothesis `clientAction`, if it exists, will run on the browser if there are some specific requirements on the front-end to deal with. The `clientAction` will replace `action`, but only on browser. When the request goes to the server, the server-side `action` will still be invoked. Am I right?
 
+### Lesson 11
+
+For the practice at the end of the lesson:
+
+The relationship check between course and module is important to ensure that instructors can only modify modules belonging to their own courses. This is the place where the server-side check should stop the write.
+
+The route itself will check if the course is owned by the instructor. But the ownership check ends to this extent and won't automatically validate the module's ownership. Therefore, an additional check is necessary to confirm that the module being modified actually belongs to the instructor's course.
+
+_Question:_
+
+In the lesson it says "Imagine instructor A edits their own course but submits a moduleId belonging to instructor B’s course". I don't think users can do this through the web application.
+
+_Answer:_
+
+Yes, like Postman.
+
 ## Codex Context window customization
 
 `~/.codex/config.toml`

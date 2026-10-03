@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resource authorization checklist</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Authorize the specific resource</h1>
+  <div class="map">Caller → allowed role? → resource exists? → caller may act on it? → nested IDs belong to this parent? → write</div>
+  <ol>
+    <li>Resolve identity from the trusted session, not a submitted user ID.</li>
+    <li>Check the caller’s broad capability (for example, instructor or admin).</li>
+    <li>Load the exact resource identified by the route and check ownership/permission.</li>
+    <li>For nested IDs, verify the child belongs to the authorized parent.</li>
+    <li>Repeat checks on every loader/action that exposes or mutates the object.</li>
+    <li>Test with two users and two resources; attempt to substitute the other user’s ID and assert denial with no write.</li>
+  </ol>
+  <p>Repo example: <a href="../app/routes/instructor.$courseId.tsx">course editor loader and action</a>. Primary source: <a href="https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html">OWASP IDOR Prevention Cheat Sheet</a>.</p>
+  <p><a href="../lessons/0011-authorize-the-resource.html">Return to Lesson 11</a></p>
+</main>
+</body>
+</html>
