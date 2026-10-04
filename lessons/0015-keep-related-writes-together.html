@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep related writes together</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 15 · 6 minutes</p>
+  <h1>Keep related writes together</h1>
+  <p class="dek">When one user operation needs multiple database writes, decide whether they must succeed or fail as one unit.</p>
+
+  <h2>Follow the self-purchase branch</h2>
+  <p>In <a href="../app/routes/courses.$slug.purchase.tsx"><code>courses.$slug.purchase.tsx</code></a>, a valid self-purchase calls <code>createPurchase(...)</code> and then <code>enrollUser(...)</code>. Those services each execute their own insert through the shared database connection.</p>
+  <div class="map">purchase confirmation → insert purchase row → insert enrollment row → welcome redirect</div>
+  <p>These records describe one expected outcome: the user has paid for and gained access to a course. But in the current code, the two inserts are not visibly grouped in a transaction. If the purchase insert succeeds and the enrollment insert then fails, the first row can remain without the second. That is a partial success the application may not want.</p>
+
+  <h2>Transaction = one commit decision</h2>
+  <p>A database transaction groups statements into a logical unit. If its callback finishes successfully, the writes commit; if an error escapes, they roll back together. Drizzle documents this API for SQLite as well as other drivers; see <a href="https://orm.drizzle.team/docs/transactions">the transaction guide</a>.</p>
+  <div class="map">BEGIN → insert purchase → insert enrollment → COMMIT<br>                  ↘ error → ROLLBACK both</div>
+  <p>For this repository’s <code>better-sqlite3</code> setup, transaction callbacks are synchronous. A possible design is to let the service functions accept a transaction handle (or move both inserts into one higher-level service) and run both queries with that same handle. This is a design sketch, not a change made here.</p>
+  <p class="takeaway"><strong>Use a transaction when partial completion would violate the operation’s meaning.</strong> It gives database atomicity; it does not automatically cover emails, HTTP calls, or other external side effects.</p>
+
+  <h2>Testing the invariant</h2>
+  <p>A useful failure-path test arranges for the second step to fail after the first insert has run. Then assert the operation fails and that neither row remains. The important claim is not just “an error happened”; it is “the purchase and enrollment stay consistent.” A success-path test should also assert that both rows exist.</p>
+
+  <h2>Quick recall</h2>
+  <p>If purchase creation succeeds but enrollment creation fails, what does a transaction protect?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="wrong" data-correct-message="Exactly: the transaction makes the related database writes commit or roll back as one unit." data-wrong-message="An error response alone cannot undo an earlier independent insert.">It guarantees the browser shows an error message</button>
+    <button data-answer="correct" data-correct-message="Exactly: the transaction makes the related database writes commit or roll back as one unit." data-wrong-message="The database state is the consistency boundary here: both writes commit, or neither does.">It keeps the two database writes all-or-nothing</button>
+    <button data-answer="wrong" data-correct-message="Exactly: the transaction makes the related database writes commit or roll back as one unit." data-wrong-message="Transactions do not automatically include network services or UI state.">It retries the purchase until enrollment works</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Practice</h2>
+  <p>Trace the self-purchase path in the route. If <code>createPurchase</code> succeeds and <code>enrollUser</code> throws, what database state could be left behind today? Then describe one failure-path test that would prove a transaction keeps the two records consistent. Bonus: why should welcome-email delivery (if added later) not be assumed to roll back with this database transaction?</p>
+  <p>Ask me about any part. See the <a href="../reference/transactional-writes.html">multi-write transaction checklist</a>, or revisit <a href="0014-loader-is-not-a-write-guard.html">Lesson 14</a>.</p>
+  <footer>
+    <p><a href="0014-loader-is-not-a-write-guard.html">Previous lesson: a loader is not a write guard</a> · <a href="../reference/transactional-writes.html">Transaction checklist</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>

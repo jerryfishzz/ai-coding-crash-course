@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Multi-write transaction checklist</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Multi-write transaction checklist</h1>
+  <div class="map">One business operation → related SQL statements → one commit/rollback decision</div>
+  <ol>
+    <li>List every row written for the user operation.</li>
+    <li>Ask whether a partial result is valid. If not, group the database writes in one transaction.</li>
+    <li>Pass the same transaction handle to every query; a global <code>db</code> query may escape the transaction.</li>
+    <li>Test success: every expected row exists.</li>
+    <li>Test failure after an earlier write: the operation fails and no partial rows remain.</li>
+    <li>Keep external side effects (email, payment provider, HTTP calls) conceptually separate; database rollback cannot undo them.</li>
+  </ol>
+  <p><a href="../lessons/0015-keep-related-writes-together.html">Return to Lesson 15</a></p>
+</main>
+</body>
+</html>
