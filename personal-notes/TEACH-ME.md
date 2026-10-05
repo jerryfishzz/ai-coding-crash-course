@@ -1,18 +1,10 @@
-# Personal Notes
+# Teach Me
 
-## Commands
-
-- `npx drizzle-kit studio`
-
-  Open Drizzle Studio web application
-
-## Teach Me
-
-### Lesson 1
+## Lesson 1
 
 `$teach` Teach me about this repo. Something about me: I've been working as a software developer in New Zealand for around seven years. I started in web development, working with technologies like React and JavaScript, and over time I moved more into cross-platform mobile development, first with React Native and more recently Flutter.
 
-### Lesson 2
+## Lesson 2
 
 `$teach` I've been away from React about 2 years. So several techs used in this repo are newer to me. I know Typescript, React. But like React Router, or Next.js, I can only say that I have a basic understanding and would need to refresh my knowledge to work with them effectively. The backend and database are always my weak areas since most of my experience has been on the frontend. I worked on small backend projects using Node.js and Express, and I have some experience with SQL databases, but I would need to spend some time to get up to speed with more complex backend and database tasks. Possibly, if you can provide an evaluation of my current skill level, it would help you know me better and then give me a guide suitable for me to understand or work with this repo.
 
@@ -44,7 +36,7 @@ _Response to its answer:_
 
 I agreed with your answer that the database operation should be related to session. But I saw there is no sessions table in the database. So I thought probably I should follow the existing structure and add the info in users table.
 
-### Lesson 4
+## Lesson 4
 
 _Questions:_
 
@@ -99,7 +91,7 @@ _Questions from the lesson:_
 
   No table structure changes, but just add a new row in the existing table.
 
-### Lesson 5
+## Lesson 5
 
 - Is `ON DELETE no action` in migration is auto generated?
 
@@ -113,7 +105,7 @@ _Response from AI:_
 
 One refinement: the immediate blocker is that other rows reference the lessons, not that other tables still reference the module.
 
-### Lesson 6
+## Lesson 6
 
 _For practice:_
 
@@ -161,7 +153,7 @@ Yes. If a `NO ACTION` foreign-key constraint is violated anywhere during the cas
 
 You don’t need to add an explicit transaction just to make that single DELETE statement atomic. The statement itself is atomic, including its cascades. Use an explicit transaction when the operation involves multiple statements that must succeed or fail together—for example, deleting rows in application-controlled steps and then deleting the module.
 
-### Lesson 7
+## Lesson 7
 
 _Practice:_
 
@@ -177,7 +169,7 @@ _Practice:_
 
   Use the updated database schema in the application to update UI components accordingly.
 
-### Lesson 8
+## Lesson 8
 
 `createTestDb` creates an in-memory test database instance that use the same setup as the main database. This instance can be used for running isolated tests without affecting the actual development or production database.
 
@@ -200,7 +192,7 @@ That assertion verifies the lesson row still exists after `deleteModule` throws.
 
 It’s useful, but not strictly necessary if the test’s only concern is “the module wasn’t deleted.” Since the lesson is the row whose deletion fails, checking that it remains makes the expected database state clearer. You could also assert its exact ID with a `find`/`some` check; `objectContaining` just lets the assertion match the relevant field without comparing every column.
 
-### Lesson 9
+## Lesson 9
 
 My answer to assertions for three policies at the end of the lesson:
 
@@ -235,7 +227,7 @@ Answer:
 
 Usually both. Keep the policy centralized in query/service functions, and use UI logic for presentation.
 
-### Lesson 10
+## Lesson 10
 
 For the practice at the end of the lesson:
 
@@ -249,7 +241,7 @@ _Question:_
 
 You said "Route actions are server-side mutation handlers in React Router’s framework model". From the React Router documentation, it says "Client actions only run in the browser and take priority over a server action when both are defined". In the example of `admin.categories.tsx`, the `action` function is a server-side action. It is invoked when the corresponding route receives a matching request, defined in the route configuration `route("admin/categories", "routes/admin.categories.tsx")`. I am wondering, how does this interact with client actions if they are also defined for the same route? I don't know React Router very much. I am just curious since the documentation talks about priority but doesn't explain the exact interaction in practice. I guess since this is a full-stack project, the `action` will work when the request reaches the server side while the hypothesis `clientAction`, if it exists, will run on the browser if there are some specific requirements on the front-end to deal with. The `clientAction` will replace `action`, but only on browser. When the request goes to the server, the server-side `action` will still be invoked. Am I right?
 
-### Lesson 11
+## Lesson 11
 
 For the practice at the end of the lesson:
 
@@ -265,7 +257,7 @@ _Answer:_
 
 Yes, like Postman.
 
-### Lesson 12
+## Lesson 12
 
 For the practice at the end of Lesson 12:
 
@@ -273,7 +265,7 @@ For the practice at the end of Lesson 12:
 - One database assertion should be module B remains the same. But I am not sure the other one. Do you mean the other is if course A should also remain the same. Yes I think so.
 - One allowed request is instructor A modify course A with module A ID.
 
-### Lesson 13
+## Lesson 13
 
 For the practice at the end of Lesson 13:
 
@@ -297,7 +289,7 @@ _Answer:_
 
 **Empty input nuance:** the displayed title remains the old value because read mode renders the `value` prop. But `editValue` stays empty, so reopening the editor may show an empty input until the value changes or Cancel resets it. That looks like a small UX edge case in the current component.
 
-### Lesson 14
+## Lesson 14
 
 For the practice at the end of Lesson 14:
 
@@ -314,7 +306,7 @@ A test for this missing check should be:
 
 I first thought since it throws when the course is not published and the code stops running - no submission happened, no need to validate no row insertions in the database for the unpublished course. But then I realized that this assumption was probably too case specific. If the code changes in the future to handle errors differently, this assumption probably wouldn't validate what we expect and could lead to false positives in the tests. So I decided we still need to do no row creation happened check. It's the general core of this validation logic despite the current implementation specifics.
 
-### Lesson 15
+## Lesson 15
 
 For the practice at the end of Lesson 15:
 
@@ -350,7 +342,7 @@ await db.transaction((tx) => {
 
 If a helper called inside that callback uses the imported global `db` instead of `tx`, its query may run outside the transaction.
 
-### Lesson 16
+## Lesson 16
 
 1. What URL receives the form, and what UI mechanism submits it?
 
@@ -420,18 +412,3 @@ If a helper called inside that callback uses the imported global `db` instead of
 6. Which external side effect would not be undone by a database rollback?
 
     Any external API calls, emails sent, or notifications triggered would not be undone by a database rollback.
-
-## Codex Context window customization
-
-`~/.codex/config.toml`
-
-In the first section before the project name line, add:
-
-`model_context_window = 1050000`
-
-## Migration Steps
-
-1. Update `app/db/schema.ts`
-2. Run `npm run db:generate`
-3. Inspect the generated SQL in `drizzle/`
-4. Run `npm run db:migrate`
