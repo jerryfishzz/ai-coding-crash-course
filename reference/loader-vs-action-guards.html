@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Loader versus action guards</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Guard writes in the action</h1>
+  <div class="map">Loader: prepare/guard page data<br>Action: authenticate + validate + enforce write invariants + mutate</div>
+  <ol>
+    <li>List each business rule enforced by the loader.</li>
+    <li>Ask whether the action independently enforces every rule that must hold before a mutation.</li>
+    <li>Remember that a direct POST need not follow a prior page load.</li>
+    <li>Test the action directly with valid session/form data and a disallowed resource state.</li>
+    <li>Assert the denial response and that no database rows were inserted or changed.</li>
+  </ol>
+  <p>Repo example: <a href="../app/routes/courses.$slug.purchase.tsx">purchase route</a>. Check whether the current implementation matches the product requirement before changing it.</p>
+  <p><a href="../lessons/0014-loader-is-not-a-write-guard.html">Return to Lesson 14</a></p>
+</main>
+</body>
+</html>

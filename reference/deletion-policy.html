@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deletion policy — repo reference</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Plan a related-data delete</h1>
+  <ol>
+    <li>Map parent → child relationships all the way down.</li>
+    <li>Ask what must survive: history, audit data, user progress, or nothing.</li>
+    <li>Choose restrict, archive, cascade, or explicit cleanup for each relationship.</li>
+    <li>For explicit multi-table cleanup, use a transaction so it commits or rolls back as one unit.</li>
+    <li>Match service behavior and foreign-key actions to that policy.</li>
+  </ol>
+  <div class="map">Restrict → preserve child rows; block parent delete<br>Cascade → delete configured child rows<br>Explicit cleanup → application orders deletes<br>Transaction → all changes commit or all roll back</div>
+  <h2>Concrete module examples</h2>
+  <p><strong>Archive the module:</strong> add <code>archivedAt</code> (or an <code>archived</code> boolean) to <code>modules</code>, then set it on the module row. Its lessons, progress, quizzes, and video events remain unchanged. Normal course/module listings filter out archived modules; a history/admin view can still include them. Because this is one row update, it is already atomic. If the operation also updates child rows, group those updates in a transaction.</p>
+  <p><strong>Restrict deletion:</strong> before deleting, check whether the module has lessons with progress, quiz attempts, or watch events. If it does, return a clear message such as “This module has learner history; archive it instead.” Keep the foreign keys as the final guard. Example: a lesson with a quiz attempt should stop deletion rather than silently erase that result.</p>
+  <p><strong>Cascade deletion:</strong> with <code>ON DELETE CASCADE</code> on each edge, deleting a module can flow through <code>modules → lessons → progress / quizzes / video events</code> and <code>quizzes → questions / attempts → answers</code>. Every edge along a dependent path must allow the cascade; one remaining <code>NO ACTION</code> edge can block the statement. SQLite applies the cascades as part of the parent delete statement. This is a deletion policy, not just a convenience.</p>
+  <p><strong>Why not cascade everything by default?</strong> If every foreign key in the database cascaded, deleting a course could also erase enrollments and purchases; deleting a user could erase learning progress and quiz history. Those may be records the product must retain. Choose the policy relationship-by-relationship, based on what the data means.</p>
+  <p>Repo example: <a href="../app/services/moduleService.ts">module deletion</a> and <a href="../app/db/schema.ts">lesson-related tables</a>.</p>
+  <p><a href="../lessons/0006-deletion-policy-and-transactions.html">Return to Lesson 06</a></p>
+</main>
+</body>
+</html>

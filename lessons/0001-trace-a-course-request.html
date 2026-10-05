@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trace a course request</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo orientation · Lesson 01 · 5 minutes</p>
+  <h1>Trace one course page through the app</h1>
+  <p class="dek">You already know React components and client/server boundaries. This repo’s useful new move is to follow a page through its server loader and domain services before it reaches the component.</p>
+
+  <p>The project is a server-rendered course platform built with React Router, TypeScript, SQLite, and Drizzle. Think of a route module as a vertical slice: it connects a URL, server-side data loading, and the rendered screen.</p>
+
+  <div class="map"><code>/courses/:slug</code> → <a href="../app/routes.ts">route map</a> → <a href="../app/routes/courses.$slug.tsx">course route loader</a> → <a href="../app/services/courseService.ts">course service</a> → <a href="../app/db/schema.ts">SQLite schema</a> → <code>loaderData</code> → React component</div>
+
+  <h2>Read the flow</h2>
+  <p>In <code>app/routes.ts</code>, the URL pattern <code>courses/:slug</code> points to <code>routes/courses.$slug.tsx</code>. React Router’s <code>loader</code> runs on the server, reads the slug, calls <code>getCourseBySlug</code>, and then gathers related information such as enrollment and progress. The returned object becomes <code>loaderData</code>, which the component uses to render the page.</p>
+  <p>The service hides query details from the route. <code>courseService.ts</code> composes Drizzle queries over the tables defined in <code>schema.ts</code>. That is similar to keeping a client screen focused on presentation while a separate module owns data access, except this loader is server code and can access the local SQLite database directly. React Router documents the loader-to-component handoff in its <a href="https://reactrouter.com/start/framework/data-loading">data loading guide</a>.</p>
+
+  <p class="takeaway"><strong>Keep this mental model:</strong> route config answers “which module handles this URL?”; the loader answers “what data does this request need?”; services answer “how does this domain query or change data?”</p>
+
+  <h2>Quick recall</h2>
+  <p>Which file maps <code>/courses/:slug</code> to its route module?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="wrong">The service module maps URL</button>
+    <button data-answer="correct">The route table maps URL</button>
+    <button data-answer="wrong">The database schema maps URL</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Your next tiny exercise</h2>
+  <p>Open <a href="../app/routes/courses.$slug.tsx">the course route</a>. Find one value returned by its loader, then locate where that value is displayed in the component. You’ve traced a full vertical slice when you can explain where it came from and why the route needed it.</p>
+  <p>For the framework contract, read the official <a href="https://reactrouter.com/start/framework/data-loading">React Router data loading guide</a>. For the database layer, keep the official <a href="https://orm.drizzle.team/docs/get-started-sqlite">Drizzle SQLite guide</a> nearby.</p>
+
+  <footer>
+    <p><a href="../reference/request-path.html">Open the request-path reference</a> · <a href="0002-skill-profile-and-repo-path.html">Continue to your repo learning path</a> · <a href="../README.md">Repository README</a></p>
+    <p>Ask me about any step that feels opaque. Next lesson: trace a write path and see how an action, service, and database update fit together.</p>
+  </footer>
+</main>
+</body>
+</html>

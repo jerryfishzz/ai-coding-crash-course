@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trace a database write</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 04 · 6 minutes</p>
+  <h1>Trace a database write</h1>
+  <p class="dek">This time the request creates a durable domain record. We’ll follow one category from the UI to SQLite and separate the form, route, service, and schema responsibilities.</p>
+
+  <h2>The path</h2>
+  <div class="map"><a href="../app/routes/admin.categories.tsx">Create category UI</a> → <code>fetcher.submit</code> → route <code>action</code> → admin check + Zod validation → <a href="../app/services/categoryService.ts"><code>createCategory</code></a> → Drizzle <code>insert</code> → <a href="../app/db/schema.ts"><code>categories</code> table</a> → action result and refreshed loader data</div>
+
+  <p>In <code>CreateCategoryRow</code>, <code>const fetcher = useFetcher()</code> creates a fetcher, and <code>handleSave</code> calls <code>fetcher.submit(..., { method: "post" })</code>. That API call is the code-level reason this is a fetcher submission instead of a normal navigating form submission; React Router handles it as an internal request and leaves the current URL in place. The framework defines fetchers as submitting to actions without navigation—see the official <a href="https://reactrouter.com/start/framework/actions"><code>useFetcher</code> action guidance</a>.</p>
+  <p>You’re right that this code does not tell the browser to navigate afterward. The create branch of the action returns a plain success object (or error data), not <code>redirect(...)</code>. The component receives the result in <code>fetcher.data</code>, shows a toast, clears and closes the row; React Router revalidates the route loader so its list data can include the new category.</p>
+
+  <p>The route <code>action</code> first reads the current user from the session and checks for an admin role. Then it reads <code>request.formData()</code> and validates it with <code>parseFormData</code> against a Zod discriminated union. The <code>intent</code> chooses which operation to run. For <code>create</code>, the route calls <code>createCategory(name)</code> and returns a success message; it does not build the SQL itself.</p>
+
+  <p>In <code>categoryService.ts</code>, <code>createCategory</code> derives a slug, checks for an existing name or slug, then runs <code>db.insert(categories).values({ name, slug }).returning().get()</code>. Drizzle translates that typed operation into an insert and returns the created row. The official <a href="https://orm.drizzle.team/docs/insert">Drizzle insert guide</a> covers this query shape.</p>
+
+  <p>The schema in <code>app/db/schema.ts</code> declares the <code>categories</code> table; its <a href="../drizzle/0000_dizzy_fenris.sql">initial SQL migration</a> adds a unique index on <code>slug</code>. That uniqueness constraint is enforced by SQLite, in addition to the service’s friendly pre-check.</p>
+
+  <p class="takeaway"><strong>Important distinction:</strong> creating a category inserts a row into an existing table. A migration changes the table structure or its constraints. This operation needs a database write, but no new migration.</p>
+
+  <h2>Quick recall</h2>
+  <p>Which layer chooses the branch for <code>intent: "create"</code>?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="correct" data-correct-message="Right: the route action branches on intent after validation, then calls the service for the selected operation." data-wrong-message="Check app/routes/admin.categories.tsx: after validation, its action checks intent and calls the matching service function.">Route action selects the intent</button>
+    <button data-answer="wrong" data-correct-message="Right: the route action branches on intent after validation, then calls the service for the selected operation." data-wrong-message="The schema describes persisted table structure. The route action dispatches this submitted intent.">Database schema selects the intent</button>
+    <button data-answer="wrong" data-correct-message="Right: the route action branches on intent after validation, then calls the service for the selected operation." data-wrong-message="The service owns category operations, but this route action chooses which operation to call based on intent.">Service query selects the intent</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Try the trace yourself</h2>
+  <p>Use the links above to find these five points: where the UI submits; where the route checks authorization; which schema validates <code>name</code>; which service writes the row; and where the database prevents a duplicate slug. Then explain why adding a new category does not require <code>npm run db:generate</code>.</p>
+
+  <p>Ask me about any boundary that feels fuzzy. Next we can follow an update or delete and discuss how domain rules and database constraints protect related data.</p>
+  <footer>
+    <p><a href="0003-cookie-session-vs-database-state.html">Previous lesson: cookie session vs database</a> · <a href="0005-application-rules-and-foreign-keys.html">Next lesson: application rules and foreign keys</a> · <a href="../reference/write-path.html">Write-path reference</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>

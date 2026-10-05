@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capstone: review a mutation</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo foundations · Lesson 16 · 5 minutes</p>
+  <h1>Capstone: review a mutation</h1>
+  <p class="dek">Bring the request path, authorization, validation, database state, failure behavior, and tests together in one review.</p>
+
+  <h2>Your trace</h2>
+  <p>Use the self-purchase path in <a href="../app/routes/courses.$slug.purchase.tsx"><code>courses.$slug.purchase.tsx</code></a>. Start from the “Confirm Purchase” form, then follow the <code>confirm-purchase</code> intent through the route and services. Don’t change code; this is a code-reading review.</p>
+  <p>In your own words, answer these six prompts:</p>
+  <ol>
+    <li>What URL receives the form, and what UI mechanism submits it?</li>
+    <li>What identity, input, and business-rule checks happen in the action before the write? Which published-course guard is missing?</li>
+    <li>Which service calls write which records, and what does a successful request do next?</li>
+    <li>If the purchase insert succeeds but enrollment fails today, what partial state may remain? What transaction boundary would protect the invariant?</li>
+    <li>Name one success-path and one failure-path database assertion that would test the intended behavior.</li>
+    <li>Which external side effect would not be undone by a database rollback?</li>
+  </ol>
+  <p>Use source links in the route, then cross-check the <a href="../reference/end-to-end-mutation.html">mutation trace checklist</a> and <a href="../reference/transactional-writes.html">transaction checklist</a>. React Router’s <a href="https://reactrouter.com/start/framework/actions">official actions guide</a> and Drizzle’s <a href="https://orm.drizzle.team/docs/transactions">transaction guide</a> are the primary references.</p>
+
+  <h2>One final recall</h2>
+  <p>Where must a rule that protects a database write be enforced?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="wrong" data-correct-message="Right: the action is the server-side mutation boundary, so it must enforce rules that protect its writes." data-wrong-message="A UI or page loader may improve the normal flow, but a mutation request can arrive independently.">Only in the component that displays the form</button>
+    <button data-answer="wrong" data-correct-message="Right: the action is the server-side mutation boundary, so it must enforce rules that protect its writes." data-wrong-message="The loader and action are separate request handlers; the loader is not guaranteed to run first.">Only in the loader that prepares the page</button>
+    <button data-answer="correct" data-correct-message="Right: the action is the server-side mutation boundary, so it must enforce rules that protect its writes." data-wrong-message="Enforce write-protecting invariants at the server-side operation boundary.">In the action before the database write</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <p class="takeaway"><strong>A dependable trace connects behavior to state.</strong> Follow what the user submits, what the server trusts, what the database changes, and what a test proves remains true.</p>
+  <p>Send me your six answers and I’ll review the trace with you. Ask about any part; we can also continue into a topic you want to work on next.</p>
+  <footer>
+    <p><a href="0015-keep-related-writes-together.html">Previous lesson: keep related writes together</a> · <a href="../reference/end-to-end-mutation.html">Mutation trace checklist</a> · <a href="../reference/transactional-writes.html">Transaction checklist</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>

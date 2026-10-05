@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deletion policy and transactions</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 06 · 6 minutes</p>
+  <h1>Deletion policy and transactions</h1>
+  <p class="dek">The module-delete bug is more than a missing cleanup query. It raises two design questions: which related data should survive, and how can a multi-step delete avoid leaving a half-finished result?</p>
+
+  <h2>The relationship tree</h2>
+  <div class="map">course → modules → lessons<br>lessons → progress, quizzes, video events<br>quizzes → questions, attempts<br>questions → options, answers<br>attempts → answers</div>
+  <p>When a module is deleted, the immediate child rows are lessons. Those lessons can themselves have saved progress, quizzes, and video events. Quiz records have further dependent rows. A cascade on just <code>lessons.moduleId</code> would delete lessons, but the lesson-level references would still block that operation unless those relationships also had a deliberate delete policy.</p>
+
+  <h2>Choose behavior from product meaning</h2>
+  <ul>
+    <li><strong>Restrict:</strong> refuse deletion while dependent data exists; explain the reason or archive the content instead. The repo currently uses <code>NO ACTION</code> foreign keys.</li>
+    <li><strong>Cascade:</strong> deleting a parent automatically deletes configured children. This is concise, but can erase learning history. Every edge in the relationship tree needs an intentional policy.</li>
+    <li><strong>Explicit cleanup:</strong> delete dependent rows in a known order, then the parent. Put the steps in a transaction so all changes commit together or roll back together.</li>
+  </ul>
+  <p>SQLite describes <code>ON DELETE CASCADE</code> as propagating a parent deletion to child rows. The behavior is declared per foreign key; see the official <a href="https://www.sqlite.org/foreignkeys.html">foreign-key actions guide</a>. Drizzle’s <a href="https://orm.drizzle.team/docs/transactions">transaction API</a> groups related statements into one commit/rollback unit.</p>
+
+  <p class="takeaway"><strong>Decide what the product promises first.</strong> If quiz attempts and progress are valuable history, deleting course content may need to be blocked or archived. If they should disappear with their lesson, define that cascade intentionally. Then make the whole operation atomic.</p>
+
+  <h2>Quick recall</h2>
+  <p>What should decide whether deleting content also deletes learning history?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="correct" data-correct-message="Right: product retention rules determine whether history is kept, archived, or removed; schema and service behavior should implement that choice." data-wrong-message="Database defaults are technical behavior, not product intent. First decide whether learners' progress and quiz records should survive content deletion.">Product retention policy should decide this</button>
+    <button data-answer="wrong" data-correct-message="Right: product retention rules determine whether history is kept, archived, or removed; schema and service behavior should implement that choice." data-wrong-message="A database default should not silently define the product's data-retention promise. Choose the intended behavior, then encode it.">Database default action should decide this</button>
+    <button data-answer="wrong" data-correct-message="Right: product retention rules determine whether history is kept, archived, or removed; schema and service behavior should implement that choice." data-wrong-message="The button triggers the operation but doesn't define what records should be retained. That decision belongs to product behavior.">Delete button label should decide this</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Apply it to this repo</h2>
+  <p>In <a href="../app/services/moduleService.ts"><code>deleteModule</code></a>, the service issues two separate deletes and has no transaction. In the current data, deleting lessons is blocked by progress, quiz, and video-event rows. If the product chose explicit cleanup, each dependent record would need a policy and cleanup step; a transaction would ensure a failure does not leave only some tables changed. No migration should be added until the intended retention behavior is clear.</p>
+
+  <p>Ask me about any part of that decision. For a next practice, pick one: preserve history by archiving modules, restrict deletion when history exists, or cascade-delete it. Explain the tradeoff before suggesting code.</p>
+  <footer>
+    <p><a href="0005-application-rules-and-foreign-keys.html">Previous lesson: application rules and foreign keys</a> · <a href="../reference/deletion-policy.html">Deletion-policy reference</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trace a mutation end to end</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 13 · 7 minutes</p>
+  <h1>Trace a mutation end to end</h1>
+  <p class="dek">Let’s follow one real operation—from the React interaction through the route’s security checks, into Drizzle, and back to refreshed UI data.</p>
+
+  <h2>Example: rename a course module</h2>
+  <div class="map"><a href="../app/routes/instructor.$courseId.tsx">InlineEditableModuleTitle</a> → <code>fetcher.submit</code> → matched route <code>action</code> → identity + role + course ownership → Zod form parse → module belongs to course? → <a href="../app/services/moduleService.ts"><code>updateModuleTitle</code></a> → SQLite <code>modules.title</code></div>
+
+  <ol>
+    <li><strong>UI starts it:</strong> when the instructor saves, <code>InlineEditableModuleTitle</code> submits <code>{ intent: "rename-module", moduleId, title }</code> with <code>fetcher.submit</code>. A fetcher submits without a navigation.</li>
+    <li><strong>Route establishes permission:</strong> the action gets the session user, checks instructor/admin role, parses the course ID from the route, loads the course, and confirms the instructor owns it (admins are allowed).</li>
+    <li><strong>Route validates and scopes the object:</strong> Zod checks the intent, integer module ID, and non-empty title. The action then looks up the module and confirms its <code>courseId</code> matches the authorized route course. A mismatch returns 404 before a write.</li>
+    <li><strong>Service persists:</strong> <code>updateModuleTitle</code> updates the row with that module ID and returns the updated record.</li>
+    <li><strong>UI catches up:</strong> the action returns success; React Router revalidates loader data after actions, so the displayed course/module data can reflect the saved title without a full-page navigation.</li>
+  </ol>
+  <p>References: React Router’s docs for <a href="https://reactrouter.com/api/hooks/useFetcher">useFetcher</a> and <a href="https://reactrouter.com/start/framework/actions">route actions</a>; repo implementation in <a href="../app/routes/instructor.$courseId.tsx">the course editor route</a>.</p>
+
+  <h2>Where would you test it?</h2>
+  <div class="map">Service test → does updateModuleTitle write the title?<br>Route-action test → owner and child-resource guards prevent unauthorized writes?<br>UI test → does the editor submit and show the refreshed result?</div>
+  <p>Different tests protect different contracts. The current <a href="../app/services/moduleService.test.ts">module service tests</a> already test the service update. A route-action test could arrange two instructors/courses and prove a mismatched module ID returns 404 with no database change. A UI test is useful if the interaction itself is what might regress; it is not a substitute for server authorization tests.</p>
+  <p class="takeaway"><strong>Trace forward to find the write; trace backward to find trust.</strong> The service writes the row, but the route is responsible for deciding whether this request may reach that write.</p>
+
+  <h2>Quick recall</h2>
+  <p>Which check specifically prevents Instructor A from renaming a module belonging to another course?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="wrong" data-correct-message="Right: the module's parent course ID is compared with the authorized route course before the service write." data-wrong-message="This allows instructor-level users into the editor, but does not prove this module belongs to this course.">An instructor role alone grants editing access to every course</button>
+    <button data-answer="correct" data-correct-message="Right: the module's parent course ID is compared with the authorized route course before the service write." data-wrong-message="The route checks the looked-up module's courseId against the courseId from the authorized route.">The module's course ID matches the authorized route course ID</button>
+    <button data-answer="wrong" data-correct-message="Right: the module's parent course ID is compared with the authorized route course before the service write." data-wrong-message="The service updates by module ID; it does not itself verify the caller's ownership of the parent course.">A text title column stores names without checking course ownership</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Practice</h2>
+  <p>Trace the rename in your own words in four hops: UI submit, route checks, service/database write, and how the UI gets current data afterward. Then name one test that protects the ownership boundary.</p>
+  <p>Ask me about any part. See the <a href="../reference/end-to-end-mutation.html">mutation trace checklist</a>, or revisit <a href="0012-test-resource-authorization.html">Lesson 12</a>.</p>
+  <footer>
+    <p><a href="0012-test-resource-authorization.html">Previous lesson: test resource authorization</a> · <a href="../reference/end-to-end-mutation.html">Mutation trace checklist</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>

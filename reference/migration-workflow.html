@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schema-to-migration workflow</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Schema change → migration → behavior</h1>
+  <div class="map">app/db/schema.ts → npm run db:generate → review drizzle/*.sql → npm run db:migrate → update and verify app behavior</div>
+  <ol>
+    <li>Change the Drizzle TypeScript schema to describe the intended database shape.</li>
+    <li>Generate a versioned SQL migration. Generation does not apply it.</li>
+    <li>Review the SQL, especially table rebuilds, foreign keys, defaults, and existing data.</li>
+    <li>Apply it to the configured database with <code>npm run db:migrate</code>.</li>
+    <li>Update services, validation, and UI. A schema change alone is not a complete feature.</li>
+  </ol>
+  <p>In this repo <code>drizzle.config.ts</code> points to <code>app/db/schema.ts</code>, <code>drizzle/</code>, and <code>data.db</code>. Use a disposable database when experimenting with potentially destructive changes.</p>
+  <p><a href="https://orm.drizzle.team/docs/drizzle-kit-generate">Drizzle Kit generate</a> · <a href="https://orm.drizzle.team/docs/drizzle-kit-migrate">Drizzle Kit migrate</a></p>
+  <p><a href="../lessons/0007-from-schema-change-to-migration.html">Return to Lesson 07</a></p>
+</main>
+</body>
+</html>

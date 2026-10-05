@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Route-action trust boundary</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">Repo field guide</p>
+  <h1>Before a route action writes</h1>
+  <div class="map">Identify caller → authorize action → validate input → invoke service → rely on DB constraints for invariants</div>
+  <ol>
+    <li>Read the user identity from the request/session; do not trust a user ID supplied in the form.</li>
+    <li>Check permission on the server for every mutation. UI visibility is presentation, not authorization.</li>
+    <li>Parse untrusted request data with a runtime schema; static TypeScript types do not validate HTTP input.</li>
+    <li>Call the service with validated data and handle expected domain/database errors.</li>
+    <li>Keep constraints in the database as integrity backstops.</li>
+  </ol>
+  <p>Repo example: <a href="../app/routes/admin.categories.tsx">admin category action</a>. It returns 401 when no user is selected, 403 for a non-admin, and 400 for invalid form data.</p>
+  <p><a href="../lessons/0010-route-actions-as-trust-boundaries.html">Return to Lesson 10</a></p>
+</main>
+</body>
+</html>

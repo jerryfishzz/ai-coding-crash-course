@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>From schema change to migration</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 07 · 5 minutes</p>
+  <h1>From schema change to migration</h1>
+  <p class="dek">A TypeScript schema describes what the app expects. A migration is the versioned set of database instructions that brings a real SQLite file to that shape.</p>
+
+  <h2>Four steps, four different jobs</h2>
+  <div class="map"><a href="../app/db/schema.ts">schema.ts</a> → <code>npm run db:generate</code> → review a new SQL file in <a href="../drizzle/0002_lying_shriek.sql">drizzle/</a> → <code>npm run db:migrate</code> → SQLite database</div>
+  <ol>
+    <li><strong>Declare intent:</strong> change the Drizzle schema, for example adding nullable <code>archived_at</code> to <code>modules</code>.</li>
+    <li><strong>Generate:</strong> Drizzle Kit compares the TypeScript schema with its migration snapshots and writes SQL. This does not itself update the database.</li>
+    <li><strong>Review:</strong> read the SQL as a code change. Check what tables/constraints change and whether existing rows are preserved.</li>
+    <li><strong>Apply:</strong> <code>npm run db:migrate</code> runs unapplied migrations against the configured database. Afterward, update service queries and UI to use the new field.</li>
+  </ol>
+  <p>These are the scripts in this repo’s <code>package.json</code>, and <code>drizzle.config.ts</code> points Drizzle Kit at <code>app/db/schema.ts</code>, the <code>drizzle</code> migration folder, and <code>data.db</code>. The checked-in migration files show the SQL that is actually applied. Official guides: Drizzle Kit <a href="https://orm.drizzle.team/docs/drizzle-kit-generate">generate</a> and <a href="https://orm.drizzle.team/docs/drizzle-kit-migrate">migrate</a>.</p>
+
+  <h2>Use the module decision as an example</h2>
+  <p>If the product chooses archive, a schema addition such as <code>archivedAt: text("archived_at")</code> changes the database shape. Existing module rows need a sensible value (often <code>NULL</code> means “not archived”). Then service queries must exclude archived modules from ordinary views. Adding the column alone does not implement the full feature.</p>
+  <p>If the product instead chooses cascade, changing <code>.references(() =&gt; modules.id)</code> to include an <code>onDelete</code> policy changes foreign-key behavior. Review the generated SQL carefully: a foreign-key change can require rebuilding a SQLite table, and every edge in the cascade path needs the intended policy. Do not infer the effect from the TypeScript line alone.</p>
+  <p class="takeaway"><strong>Schema edit ≠ database update ≠ completed feature.</strong> Generate and inspect the migration, apply it deliberately, then update and verify the code paths that depend on the new behavior.</p>
+
+  <h2>Quick recall</h2>
+  <p>Which step actually applies a generated migration to the configured database?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="wrong" data-correct-message="Correct: db:generate creates migration SQL; db:migrate applies unapplied migrations to the configured database." data-wrong-message="Generation writes a SQL migration file for review. It does not alter data.db.">npm run db:generate</button>
+    <button data-answer="correct" data-correct-message="Correct: db:generate creates migration SQL; db:migrate applies unapplied migrations to the configured database." data-wrong-message="Look for the separate script that runs Drizzle Kit's migrate command against the configured database.">npm run db:migrate</button>
+    <button data-answer="wrong" data-correct-message="Correct: db:generate creates migration SQL; db:migrate applies unapplied migrations to the configured database." data-wrong-message="Editing TypeScript updates the app's declared model, not an existing SQLite file.">Edit app/db/schema.ts</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Practice</h2>
+  <p>Suppose we add <code>archivedAt</code> to <code>modules</code>. Which step creates SQL, which step changes the database, and what application behavior is still missing after the migration? No need to run a migration—the goal is to explain the workflow safely.</p>
+  <p>Ask me about any step. For more detail, see the <a href="../reference/migration-workflow.html">migration workflow reference</a> or revisit <a href="0006-deletion-policy-and-transactions.html">Lesson 06</a>.</p>
+  <footer>
+    <p><a href="0006-deletion-policy-and-transactions.html">Previous lesson: deletion policy and transactions</a> · <a href="../reference/migration-workflow.html">Migration workflow reference</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>

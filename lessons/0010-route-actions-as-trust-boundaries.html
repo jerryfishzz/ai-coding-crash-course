@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Route actions are trust boundaries</title>
+  <link rel="stylesheet" href="../assets/lesson.css">
+  <script src="../assets/recall-check.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Backend foundations · Lesson 10 · 6 minutes</p>
+  <h1>Route actions are trust boundaries</h1>
+  <p class="dek">A form is a convenient way to send a request, not a security boundary. The server must validate each request and decide whether its user may perform the operation.</p>
+
+  <h2>Trace the category action</h2>
+  <div class="map"><a href="../app/routes/admin.categories.tsx">Browser form</a> → POST → <code>action</code>: identify user → authorize admin → parse/validate input → <a href="../app/services/categoryService.ts">service</a> → database</div>
+  <p>In <code>admin.categories.tsx</code>, the action first calls <code>getCurrentUserId</code>, then loads that user and checks for <code>UserRole.Admin</code>. Only after those checks does it read and validate the form data with <code>parseFormData</code>. It then dispatches the validated intent to the category service.</p>
+  <p>These checks answer separate questions:</p>
+  <ul>
+    <li><strong>Authentication:</strong> who is making this request? No current user gets a 401 response.</li>
+    <li><strong>Authorization:</strong> may this user manage categories? A missing user record or non-admin role gets a 403 response.</li>
+    <li><strong>Validation:</strong> is the submitted intent and data well-formed? Invalid form data gets a 400 response.</li>
+  </ul>
+
+  <h2>Why the order and server location matter</h2>
+  <p>A caller can send a POST without clicking your UI, so hiding an admin button or disabling a form is not authorization. The route action must enforce permission on every mutation. The UI may still hide controls for a clear experience, but the server is authoritative.</p>
+  <p>Validation is also runtime work: TypeScript types do not validate untrusted form strings. Here Zod checks the discriminated <code>intent</code> and its fields before the service is called. The <code>action</code> export is the server-side mutation handler in <a href="https://reactrouter.com/start/framework/actions">React Router’s framework model</a>.</p>
+  <p><strong>Client-action nuance:</strong> a route may also export <code>clientAction</code>. For a submission handled by the hydrated browser router, that client function takes priority; it does not automatically run both functions. If it needs the route’s server mutation, it can call the provided <code>serverAction()</code> helper. A direct HTTP POST to the route (such as a non-JavaScript form submission) is handled by the server-side <code>action</code>. This route exports no <code>clientAction</code>, so its browser submissions use the server action.</p>
+  <p class="takeaway"><strong>Before any write:</strong> identify the user, authorize the operation, validate the request, then call the service. Keep database constraints as a final integrity guard.</p>
+
+  <h2>Quick recall</h2>
+  <p>A non-admin sends a handcrafted POST to create a category. Which layer must stop it?</p>
+  <section class="check" aria-label="Recall question">
+    <button data-answer="wrong" data-correct-message="Right: the server-side route action must authorize every request, including handcrafted submissions." data-wrong-message="A caller can bypass UI controls and send a request directly to the action.">The React component hides the button</button>
+    <button data-answer="correct" data-correct-message="Right: the server-side route action must authorize every request, including handcrafted submissions." data-wrong-message="The service may apply reusable domain rules, but this route's role check is the authorization boundary for the request.">The route action checks the user role</button>
+    <button data-answer="wrong" data-correct-message="Right: the server-side route action must authorize every request, including handcrafted submissions." data-wrong-message="Foreign keys protect relational integrity, not which user is allowed to create categories.">The database foreign key rejects it</button>
+    <p id="feedback" aria-live="polite"></p>
+  </section>
+
+  <h2>Practice</h2>
+  <p>In this route, what happens first if someone submits invalid form data while not logged in: the 401 authentication response or the 400 validation response? Point to the order in the <code>action</code>, then explain why it is useful.</p>
+  <p>Ask me about any part. See the <a href="../reference/route-action-trust-boundary.html">route-action checklist</a>, or revisit <a href="0004-trace-a-database-write.html">Lesson 04</a>.</p>
+  <footer>
+    <p><a href="0009-test-a-deletion-policy.html">Previous lesson: turn deletion policy into tests</a> · <a href="../reference/route-action-trust-boundary.html">Route-action checklist</a> · <a href="../RESOURCES.md">Resources</a></p>
+  </footer>
+</main>
+</body>
+</html>
