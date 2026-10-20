@@ -1,9 +1,25 @@
-import { Form, Link, useSearchParams, useNavigation, isRouteErrorResponse } from "react-router";
+import { CourseRatingSummary } from "~/components/course-rating";
+import { getCourseRatingSummaries } from "~/services/ratingService";
+import {
+  Form,
+  Link,
+  useSearchParams,
+  useNavigation,
+  isRouteErrorResponse,
+} from "react-router";
 import type { Route } from "./+types/courses";
-import { buildCourseQuery, getLessonCountForCourse } from "~/services/courseService";
+import {
+  buildCourseQuery,
+  getLessonCountForCourse,
+} from "~/services/courseService";
 import { getAllCategories } from "~/services/categoryService";
 import { CourseStatus } from "~/db/schema";
-import { Card, CardContent, CardFooter, CardHeader } from "~/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { AlertTriangle, BookOpen, Search } from "lucide-react";
@@ -12,7 +28,10 @@ import { UserAvatar } from "~/components/user-avatar";
 import { getCurrentUserId } from "~/lib/session";
 import { formatPrice } from "~/lib/utils";
 import { getUserEnrolledCourses } from "~/services/enrollmentService";
-import { calculateProgress, getCompletedLessonCount } from "~/services/progressService";
+import {
+  calculateProgress,
+  getCompletedLessonCount,
+} from "~/services/progressService";
 import { resolveCountry } from "~/lib/country.server";
 import { calculatePppPrice } from "~/lib/ppp";
 
@@ -48,12 +67,23 @@ export async function loader({ request, url }: Route.LoaderArgs) {
     const enrollments = getUserEnrolledCourses(currentUserId);
     for (const enrollment of enrollments) {
       progressMap.set(enrollment.courseId, {
-        progress: calculateProgress(currentUserId, enrollment.courseId, false, false),
-        completedLessons: getCompletedLessonCount(currentUserId, enrollment.courseId),
+        progress: calculateProgress(
+          currentUserId,
+          enrollment.courseId,
+          false,
+          false
+        ),
+        completedLessons: getCompletedLessonCount(
+          currentUserId,
+          enrollment.courseId
+        ),
       });
     }
   }
 
+  const ratings = new Map(
+    getCourseRatingSummaries().map((rating) => [rating.courseId, rating])
+  );
   const coursesWithLessonCount = courses.map((course) => {
     const userProgress = progressMap.get(course.id);
     const pppPrice = course.pppEnabled
@@ -61,6 +91,7 @@ export async function loader({ request, url }: Route.LoaderArgs) {
       : course.price;
     return {
       ...course,
+      ratingSummary: ratings.get(course.id) ?? { average: null, count: 0 },
       lessonCount: getLessonCountForCourse(course.id),
       progress: userProgress?.progress ?? null,
       completedLessons: userProgress?.completedLessons ?? null,
@@ -70,7 +101,13 @@ export async function loader({ request, url }: Route.LoaderArgs) {
 
   const categories = getAllCategories();
 
-  return { courses: coursesWithLessonCount, categories, search, category, currentUserId };
+  return {
+    courses: coursesWithLessonCount,
+    categories,
+    search,
+    category,
+    currentUserId,
+  };
 }
 
 function CourseCardSkeleton() {
@@ -194,17 +231,19 @@ export default function CourseCatalog({ loaderData }: Route.ComponentProps) {
                 <CardHeader>
                   <div className="mb-1 flex items-center gap-2 text-xs font-medium">
                     <span className="text-primary">{course.categoryName}</span>
-                    {currentUserId !== null && course.instructorId === currentUserId && (
-                      <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                        Your Course
-                      </span>
-                    )}
+                    {currentUserId !== null &&
+                      course.instructorId === currentUserId && (
+                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                          Your Course
+                        </span>
+                      )}
                   </div>
                   <h3 className="text-lg font-semibold leading-tight group-hover:text-primary">
                     {course.title}
                   </h3>
                 </CardHeader>
                 <CardContent>
+                  <CourseRatingSummary {...course.ratingSummary} />
                   <p className="line-clamp-2 text-sm text-muted-foreground">
                     {course.description}
                   </p>

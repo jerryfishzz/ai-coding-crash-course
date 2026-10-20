@@ -1,3 +1,13 @@
+import {
+  CourseRatingSummary,
+  CourseRatingPicker,
+} from "~/components/course-rating";
+import {
+  canRateCourse,
+  getCourseRatingSummary,
+  getStudentCourseRating,
+  saveCourseRating,
+} from "~/services/ratingService";
 import { useEffect } from "react";
 import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -103,6 +113,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const tierInfo = getCountryTierInfo(country);
 
   return {
+    ratingSummary: getCourseRatingSummary(course.id),
+    studentRating: currentUserId
+      ? getStudentCourseRating(course.id, currentUserId)
+      : null,
+    canRate: currentUserId !== null && canRateCourse(currentUserId),
     course: courseWithDetails,
     salesCopyHtml,
     lessonCount,
@@ -116,7 +131,29 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   };
 }
 
-// No action — enrollment is handled via the purchase confirmation page
+export async function action({ params, request }: Route.ActionArgs) {
+  const userId = await getCurrentUserId(request);
+  if (!userId)
+    return data({ error: "Sign in to rate this course." }, { status: 401 });
+  if (!canRateCourse(userId))
+    return data({ error: "Only students can rate courses." }, { status: 403 });
+  const course = getCourseBySlug(params.slug);
+  if (!course) throw data("Course not found", { status: 404 });
+  const form = await request.formData();
+  const rating = form.get("rating");
+  if (
+    form.get("intent") !== "rate" ||
+    typeof rating !== "string" ||
+    !/^[1-5]$/.test(rating)
+  ) {
+    return data(
+      { error: "Choose a star rating from 1 to 5." },
+      { status: 400 }
+    );
+  }
+  saveCourseRating(course.id, userId, Number(rating));
+  return data({ success: true });
+}
 
 export function HydrateFallback() {
   return (
@@ -321,6 +358,21 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
             </span>
           )}
         </div>
+      </div>
+
+      <div className="mb-8">
+        <CourseRatingSummary {...loaderData.ratingSummary} />
+        {loaderData.canRate && (
+          <CourseRatingPicker
+            rating={loaderData.studentRating}
+            action={`/courses/${course.slug}`}
+          />
+        )}
+        {currentUserId === null && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Sign in as a student to rate this course.
+          </p>
+        )}
       </div>
 
       {/* Two-column: sales copy left, sidebar right */}
