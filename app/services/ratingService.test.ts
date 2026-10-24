@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDb, seedBaseData } from "~/test/setup";
 import { courseRatings, users, UserRole } from "~/db/schema";
 
@@ -20,6 +20,10 @@ describe("course ratings", () => {
   beforeEach(() => {
     testDb = createTestDb();
     base = seedBaseData(testDb);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("distinguishes unrated courses from rated courses", () => {
@@ -55,6 +59,27 @@ describe("course ratings", () => {
       { courseId: base.course.id, average: 3, count: 2 },
     ]);
     expect(getStudentCourseRating(base.course.id, base.user.id)).toBe(4);
+  });
+
+  it("sets both timestamps on creation and preserves createdAt on updates", () => {
+    vi.useFakeTimers();
+    const createdAt = "2026-10-24T01:00:00.000Z";
+    vi.setSystemTime(new Date(createdAt));
+
+    const original = saveCourseRating(base.course.id, base.user.id, 5);
+    expect(original).toMatchObject({ createdAt, updatedAt: createdAt });
+
+    const updatedAt = "2026-10-25T02:00:00.000Z";
+    vi.setSystemTime(new Date(updatedAt));
+
+    const updated = saveCourseRating(base.course.id, base.user.id, 4);
+    expect(updated).toMatchObject({
+      id: original.id,
+      rating: 4,
+      createdAt,
+      updatedAt,
+    });
+    expect(getCourseRatingSummary(base.course.id).count).toBe(1);
   });
 
   it.each([0, 6, 1.5, NaN, Infinity])("rejects invalid rating %s", (rating) => {

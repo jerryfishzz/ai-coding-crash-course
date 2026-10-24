@@ -274,6 +274,12 @@ export const courseRatings = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     rating: integer("rating").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    updatedAt: text("updated_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
   },
   (table) => [
     uniqueIndex("course_ratings_course_user_unique").on(

@@ -55,12 +55,13 @@ export function saveCourseRating(
   }
   if (!canRateCourse(userId))
     throw new Error("Only students can rate courses.");
+  const now = new Date().toISOString();
   return db
     .insert(courseRatings)
-    .values({ courseId, userId, rating })
+    .values({ courseId, userId, rating, createdAt: now, updatedAt: now })
     .onConflictDoUpdate({
       target: [courseRatings.courseId, courseRatings.userId],
-      set: { rating },
+      set: { rating, updatedAt: now },
     })
     .returning()
     .get();
