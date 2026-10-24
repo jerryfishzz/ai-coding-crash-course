@@ -59,3 +59,49 @@ Before you write your prompt, consider:
 - Most time consuming jobs
 
   - Failed (exit 130): 17.5s
+
+## Notes
+
+### `onConflictDoUpdate`
+
+```ts
+db
+.insert(courseRatings)
+.values({ courseId, userId, rating })
+.onConflictDoUpdate({
+  target: [courseRatings.courseId, courseRatings.userId],
+  set: { rating },
+})
+.returning()
+.get();
+```
+
+### HTML submission string type
+
+HTML forms submit ordinary field values as **strings**, even when the value starts as a number.
+
+In the picker:
+
+```tsx
+<button name="rating" value={value}>
+```
+
+`value` is a JavaScript number, but the form submits it as text. Selecting five stars produces:
+
+```ts
+const rating = form.get("rating"); // "5", not 5
+```
+
+`FormData.get()` can return **`string | File | null`**, so this check rules out a file or missing field:
+
+```ts
+typeof rating !== "string"
+```
+
+After validating the string, we convert it to a number for the service:
+
+```ts
+saveCourseRating(course.id, userId, Number(rating));
+```
+
+## Questions
