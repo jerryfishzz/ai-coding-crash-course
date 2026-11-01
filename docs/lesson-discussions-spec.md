@@ -145,4 +145,4 @@ This document records the shared understanding reached in the grilling interview
 
 ## Next step
 
-Prepare the technical implementation plan from these agreed requirements. Database tables, route and service boundaries, implementation sequence, and verification strategy belong in that plan.
+The [technical implementation plan](./lesson-discussions-implementation-plan.md) translates these agreed requirements into storage, module and route interfaces, six implementation phases, and a verification strategy. Implementation has not started.
