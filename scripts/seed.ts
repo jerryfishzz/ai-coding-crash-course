@@ -5,6 +5,8 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import path from "path";
 import { fileURLToPath } from "url";
 import * as schema from "../app/db/schema";
+import { seedDiscussionActivity } from "./seed-discussions";
+import { seedDiscussionPilot } from "./seed-discussion-pilot";
 import {
   UserRole,
   CourseStatus,
@@ -45,6 +47,11 @@ async function seed() {
 
   // Drop and recreate tables for a clean seed
   sqlite.exec(`
+    DROP TABLE IF EXISTS discussion_notifications;
+    DROP TABLE IF EXISTS discussion_reports;
+    DROP TABLE IF EXISTS discussion_replies;
+    DROP TABLE IF EXISTS discussion_questions;
+    DROP TABLE IF EXISTS discussion_settings;
     DROP TABLE IF EXISTS course_ratings;
     DROP TABLE IF EXISTS video_watch_events;
     DROP TABLE IF EXISTS quiz_answers;
@@ -1403,6 +1410,22 @@ You've completed the Building REST APIs course. You now have the skills to build
     .run();
 
   console.log("Created 7 enrollments.");
+  seedDiscussionActivity(
+    db,
+    course1.id,
+    course2.id,
+    instructor1.id,
+    instructor2.id,
+    students[0].id
+  );
+  console.log(
+    "Created discussion activity with unread entries and read history; Sarah is also enrolled in Marcus’s course."
+  );
+  const pilot = seedDiscussionPilot(db, course1.id, students[0].id, admin.id);
+  console.log("Discussion pilot: global default disabled; TypeScript explicitly enabled; Node.js inherits; all lessons use their course setting.");
+  console.log(`  Pilot lesson: /courses/${course1.slug}/lessons/${pilot.lessonId}`);
+  console.log(`  Long thread (23 replies): ?question=${pilot.questionIds[0]}`);
+  console.log("  Added question pagination, resolved/hidden/deleted posts, and pending/reviewed reports.");
 
   // ─── Course Ratings ───
   // Leave course 2 unrated to demonstrate the "No ratings yet" state.
@@ -1748,7 +1771,7 @@ You've completed the Building REST APIs course. You now have the skills to build
     `  Courses: 2 (${course1LessonIds.length} + ${course2LessonIds.length} lessons)`
   );
   console.log("  Quizzes: 3");
-  console.log("  Enrollments: 7");
+  console.log("  Enrollments: 8");
   console.log("  Course ratings: 3 (course 2 has no ratings yet)");
   console.log("  Purchases: 6 (5 individual + 1 team)");
   console.log("  Teams: 1 (with 5 coupons)");

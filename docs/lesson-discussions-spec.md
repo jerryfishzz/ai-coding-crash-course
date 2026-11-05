@@ -1,6 +1,6 @@
 # Lesson discussions specification
 
-Status: requirements agreed, 2026-11-02. No implementation has started.
+Status: requirements agreed, 2026-11-02. Phases 1–6 are implemented as of 2026-11-04, with local desktop/phone-width browser verification. Pilot activation remains manual.
 
 This document records the shared understanding reached in the grilling interview, including the lesson-level pause-only control and the final decisions on notification restoration and archived courses. The requirements discussion is complete. Pilot ownership below describes responsibility in the exercise; it does not claim that a real-world operator has been assigned.
 
@@ -145,4 +145,4 @@ This document records the shared understanding reached in the grilling interview
 
 ## Next step
 
-The [technical implementation plan](./lesson-discussions-implementation-plan.md) translates these agreed requirements into storage, module and route interfaces, six implementation phases, and a verification strategy. Implementation has not started.
+The [technical implementation plan](./lesson-discussions-implementation-plan.md) records all six completed phases: data/access, admin settings, embedded question/reply flow, lesson-scoped drafts and navigation protection, moderation/private reports, separate inboxes/read tracking, shared mobile navigation, responsive layouts, and pilot fixtures. Local Chrome checks pass at desktop and phone widths. Follow the [pilot guide](./lesson-discussions-pilot.md) for isolated seed review, physical-phone/live-video smoke checks, explicit course activation, daily moderation, and the manual two-week review. The working database has not been seeded or enabled for the pilot.

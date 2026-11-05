@@ -9,6 +9,8 @@ export default [
   index("routes/home.tsx"),
   layout("routes/layout.app.tsx", [
     route("dashboard", "routes/dashboard.tsx"),
+    route("notifications", "routes/notifications.tsx"),
+    route("discussion-inbox", "routes/discussion-inbox.tsx"),
     route("courses", "routes/courses.tsx"),
     route("courses/:slug", "routes/courses.$slug.tsx"),
     route("courses/:slug/:moduleId", "routes/courses.$slug.$moduleId.tsx"),
@@ -49,5 +51,7 @@ export default [
   route("api/switch-user", "routes/api.switch-user.ts"),
   route("api/logout", "routes/api.logout.ts"),
   route("api/video-tracking", "routes/api.video-tracking.ts"),
+  route("api/discussions/unread", "routes/api.discussions.unread.ts"),
+  route("api/discussions/read", "routes/api.discussions.read.ts"),
   route("api/set-dev-country", "routes/api.set-dev-country.ts"),
 ] satisfies RouteConfig;

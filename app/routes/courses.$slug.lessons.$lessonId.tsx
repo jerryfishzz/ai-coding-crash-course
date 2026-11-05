@@ -55,6 +55,12 @@ import { resolveCountry } from "~/lib/country.server";
 import { checkPppAccess, COUNTRIES } from "~/lib/ppp";
 import { findPurchase } from "~/services/purchaseService";
 import { parseFormData, parseParams } from "~/lib/validation";
+import {
+  loadDiscussionView,
+  discussionCommandResponse,
+} from "~/lib/discussion-view.server";
+import { LessonDiscussion } from "~/components/discussions/lesson-discussion";
+import { LessonDrafts } from "~/components/discussions/lesson-drafts";
 
 const lessonParamsSchema = z.object({
   slug: z.string().min(1),
@@ -69,6 +75,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
   const title = loaderData?.lesson?.title ?? "Lesson";
   const courseTitle = loaderData?.course?.title ?? "Course";
   return [{ title: `${title} — ${courseTitle} — Cadence` }];
+}
+
+export function headers({ actionHeaders }: Route.HeadersArgs) {
+  const headers = new Headers(actionHeaders);
+  headers.set("Cache-Control", "private, no-store");
+  return headers;
 }
 
 type FlatLesson = {
@@ -176,10 +188,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   let pppBlocked = false;
   let pppBlockedCountry: string | null = null;
   let pppPurchaseCountry: string | null = null;
+  let currentCountry: string | null = null;
 
   if (enrolled && currentUserId) {
     const purchase = findPurchase(currentUserId, course.id);
-    const currentCountry = await resolveCountry(request);
+    currentCountry = await resolveCountry(request);
     const pppResult = checkPppAccess(
       course.price,
       course.pppEnabled,
@@ -190,6 +203,13 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     pppBlockedCountry = pppResult.blockedCountry;
     pppPurchaseCountry = pppResult.purchaseCountry;
   }
+
+  const discussion = await loadDiscussionView(
+    currentUserId,
+    lessonId,
+    new URL(request.url).searchParams,
+    currentCountry
+  );
 
   // Render lesson content from Markdown to HTML server-side
   const contentHtml = lesson.content
@@ -281,7 +301,45 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     pppBlocked,
     pppBlockedCountry,
     pppPurchaseCountry,
+    discussion,
   };
+}
+
+export async function clientAction({
+  request,
+  serverAction,
+}: Route.ClientActionArgs) {
+  const intent = (await request.clone().formData()).get("intent");
+  if (typeof intent !== "string" || !intent.startsWith("discussion-"))
+    return serverAction();
+  try {
+    return await serverAction();
+  } catch (error) {
+    if (
+      request.signal.aborted ||
+      (error instanceof Response && error.status >= 300 && error.status < 400)
+    )
+      throw error;
+    return data(
+      {
+        discussionResult: {
+          ok: false as const,
+          status: 503,
+          error: {
+            code: "submission_failed",
+            message:
+              intent === "discussion-report"
+                ? "We couldn’t confirm that your report was sent. Your reason has been kept. You can try sending it again."
+                : intent.startsWith("discussion-create-") ||
+                    intent.startsWith("discussion-edit-")
+                  ? "We couldn’t confirm that your post was saved. Your draft has been kept. Check the discussion before trying again."
+                  : "We couldn’t confirm that your change was saved. Check the discussion before trying again.",
+          },
+        },
+      },
+      { status: 503 }
+    );
+  }
 }
 
 export async function action({ params, request }: Route.ActionArgs) {
@@ -293,12 +351,23 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   const currentUserId = await getCurrentUserId(request);
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (typeof intent === "string" && intent.startsWith("discussion-")) {
+    return discussionCommandResponse(
+      currentUserId,
+      course.id,
+      lessonId,
+      formData,
+      request.method,
+      currentUserId ? await resolveCountry(request) : null
+    );
+  }
+
   if (!currentUserId) {
     throw data("You must be logged in", { status: 401 });
   }
-
-  const formData = await request.formData();
-  const intent = formData.get("intent");
 
   if (intent === "mark-complete") {
     markLessonComplete(currentUserId, lessonId);
@@ -362,7 +431,21 @@ function useAutoplay() {
   return [enabled, toggle] as const;
 }
 
-export default function LessonViewer({ loaderData }: Route.ComponentProps) {
+export default function LessonViewer({
+  loaderData,
+}: Pick<Route.ComponentProps, "loaderData">) {
+  return (
+    <LessonDrafts
+      key={`${loaderData.lesson.id}:${loaderData.currentUserId}`}
+      lessonId={loaderData.lesson.id}
+      courseSlug={loaderData.course.slug}
+    >
+      <LessonContent loaderData={loaderData} />
+    </LessonDrafts>
+  );
+}
+
+function LessonContent({ loaderData }: Pick<Route.ComponentProps, "loaderData">) {
   const {
     course,
     curriculum,
@@ -382,6 +465,7 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
     pppBlocked,
     pppBlockedCountry,
     pppPurchaseCountry,
+    discussion,
   } = loaderData;
   const [autoplay, toggleAutoplay] = useAutoplay();
   const fetcher = useFetcher({ key: `mark-complete-${lesson.id}` });
@@ -456,9 +540,9 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
         enrolled={enrolled}
       />
 
-      <div className="flex-1 p-6 lg:p-8">
+      <div className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
         {/* Breadcrumb */}
-        <nav className="mb-6 text-sm text-muted-foreground">
+        <nav className="mb-6 text-sm text-muted-foreground [overflow-wrap:anywhere]">
           <Link to="/courses" className="hover:text-foreground">
             Courses
           </Link>
@@ -507,6 +591,7 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
           {/* YouTube Video */}
           {lesson.videoUrl && (
             <YouTubePlayer
+              key={`${lesson.id}:${lesson.videoUrl}`}
               videoUrl={lesson.videoUrl}
               lessonId={lesson.id}
               title={lesson.title}
@@ -550,7 +635,7 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
           {enrolled && currentUserId && (
             <div className="mb-8">
               {isCompleted ? (
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2 text-green-600">
                     <CheckCircle2 className="size-5" />
                     <span className="font-medium">Lesson completed</span>
@@ -558,8 +643,13 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
                   {nextLesson && (
                     <Link
                       to={`/courses/${course.slug}/lessons/${nextLesson.id}`}
+                      className="min-w-0 max-w-full"
                     >
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-auto max-w-full whitespace-normal py-2 text-left [overflow-wrap:anywhere]"
+                      >
                         Up next: {nextLesson.title}
                         <ChevronRight className="ml-1 size-4" />
                       </Button>
@@ -569,7 +659,10 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
               ) : nextLesson ? (
                 <fetcher.Form method="post">
                   <input type="hidden" name="intent" value="mark-complete" />
-                  <Button disabled={isMarking}>
+                  <Button
+                    disabled={isMarking}
+                    className="h-auto max-w-full whitespace-normal py-2 text-left [overflow-wrap:anywhere]"
+                  >
                     {isMarking ? (
                       "Completing..."
                     ) : (
@@ -592,8 +685,14 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
             </div>
           )}
 
+          <LessonDiscussion
+            key={`${lesson.id}:${currentUserId}`}
+            lessonId={lesson.id}
+            view={discussion}
+          />
+
           {/* Prev/Next Navigation */}
-          <div className="flex items-center justify-between border-t pt-6">
+          <div className="flex items-center justify-between gap-4 border-t pt-6 [overflow-wrap:anywhere] [&_a]:min-w-0 [&_a>div]:min-w-0 [&_svg]:shrink-0">
             {prevLesson ? (
               <Link
                 to={`/courses/${course.slug}/lessons/${prevLesson.id}`}
