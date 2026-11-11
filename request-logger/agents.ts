@@ -12,7 +12,7 @@
  * are data rather than prose, they can be tested — and they cannot silently rot
  * the way a README does.
  *
- * Adding an eighth agent should be one entry here and nothing else.
+ * Adding another agent should be one entry here and nothing else.
  *
  * Not every student's setup fits a catalogue entry, though — a local model
  * server or a small provider has no fixed host to hard-code. For those, the
@@ -41,6 +41,12 @@ export interface AgentChoice {
    * routes (see resolveCustomTarget).
    */
   customModel?: string;
+  /**
+   * Only set for a provider that asks for one (see providerNeedsRegion):
+   * the Vertex AI region the student typed, e.g. "global", "eu" or "us-east5".
+   * Absent means "global".
+   */
+  region?: string;
 }
 
 export interface ResolvedTarget {
@@ -51,6 +57,11 @@ export interface ResolvedTarget {
   providerLabel: string;
   /** The single host every request is forwarded to. */
   upstreamHost: string;
+  /**
+   * A path every forwarded request is prefixed with, e.g. "/v1" for Vertex
+   * AI. Absent for a provider whose agent already sends the full path.
+   */
+  upstreamPathPrefix?: string;
   renderer: RendererId;
   /** The base URL the student points their agent at, e.g. http://localhost:8787/v1 */
   baseUrl: string;
@@ -171,6 +182,16 @@ interface ProviderEntry {
   id: string;
   label: string;
   upstreamHost: string;
+  /**
+   * For a provider whose upstream depends on the student's environment
+   * (Vertex AI's region). Overrides upstreamHost when present. An `error`
+   * result is shown to the student instead of starting the proxy.
+   */
+  resolveUpstream?: (
+    choice: AgentChoice,
+    env: NodeJS.ProcessEnv
+  ) =>
+    { host: string; pathPrefix?: string; notes?: string[] } | { error: string };
   renderer: RendererId;
   /**
    * Appended to http://localhost:PORT to make the base URL.
@@ -225,8 +246,7 @@ interface AgentEntry {
 const CODEX_OVERRIDE_NOTE =
   "The -c flag sets this for one run only. Your ~/.codex/config.toml is not " +
   "touched, so your normal Codex is unchanged the moment you stop using this " +
-  "command. Keep the quotes exactly as they are: Codex reads the value as TOML, " +
-  "and an unquoted URL does not parse.";
+  "command. Keep the quotes exactly as they are.";
 
 const PI_NOTE =
   "Pi has no base URL variable and no flag. A config file is the only way to " +
@@ -377,10 +397,124 @@ const ANTIGRAVITY_LOGIN_WARNING =
   "so this catalogue does not claim that route works. Ask for it via the " +
   "issue tracker if you need it logged.";
 
+/**
+ * Mistral Vibe (`vibe`) has no base URL variable or flag of its own, but it
+ * reads any top-level config field from a VIBE_<FIELD> environment variable
+ * (pydantic-settings, `env_prefix="VIBE_"`), above ~/.vibe/config.toml and
+ * below nothing the student is likely to have set. `providers` is a list
+ * merged by `name` (WithUnionMerge(merge_key="name") in vibe_schema.py), so a
+ * one-entry VIBE_PROVIDERS list named "mistral" replaces only the built-in
+ * Mistral provider, and only for this run — the same "nothing on disk
+ * changes" property Codex's -c flag gives.
+ *
+ * The entry is the built-in one (vibe/core/config/vibe_schema.py,
+ * DEFAULT_PROVIDERS) with api_base swapped. backend="mistral" keeps Vibe on
+ * its Mistral SDK route, which strips the /v1 from api_base and posts to
+ * /v1/chat/completions — hence the suffix below. preserve_api_base stops
+ * Vibe's /whoami tenant check from writing the real host back over it.
+ * Verified against mistral-vibe 3.1.0.
+ */
+const VIBE_PROVIDERS = JSON.stringify([
+  {
+    name: "mistral",
+    api_base: "{baseUrl}",
+    api_key_env_var: "MISTRAL_API_KEY",
+    backend: "mistral",
+    preserve_api_base: true,
+  },
+]);
+
+const VIBE_NOTE =
+  "Vibe has no base URL variable or flag, but it reads any config.toml " +
+  "setting from a VIBE_ environment variable. VIBE_PROVIDERS replaces " +
+  "Vibe's built-in mistral provider for this run only, so your " +
+  "~/.vibe/config.toml is not touched. It works with MISTRAL_API_KEY " +
+  "exported in your shell, or with the key `vibe --setup` saved for you.";
+
+const VIBE_TELEMETRY_NOTE =
+  "VIBE_ENABLE_TELEMETRY=false turns Vibe's usage telemetry off for this " +
+  "run. Vibe sends it to the same host as the model calls, so without it " +
+  "every turn also writes a few telemetry captures that never reach the model.";
+
 const OPENCODE_NOTE =
   "The environment variable above works, but only by accident: OpenCode passes " +
   "no base URL of its own for this provider, so the bundled SDK falls back to " +
   "reading the variable. The config file below is the durable way to do it.";
+
+/**
+ * Read a Vertex AI region as the student typed it: trimmed and lower-cased,
+ * with an empty answer meaning "global". Undefined when it cannot be a host
+ * label, which keeps a typo from ever reaching a hostname. The wizard
+ * validates with this and vertexUpstream resolves with it, so the two agree.
+ */
+export function normalizeVertexRegion(
+  raw: string | undefined
+): string | undefined {
+  const region = (raw ?? "").trim().toLowerCase() || "global";
+  return /^[a-z][a-z0-9-]*$/.test(region) ? region : undefined;
+}
+
+/**
+ * Whether the wizard should ask which region to forward to. Only Claude
+ * Code on Vertex AI does — its host depends on the region.
+ */
+export function providerNeedsRegion(
+  agentId: string,
+  providerId: string | undefined
+): boolean {
+  return agentId === "claude-code" && providerId === "vertex";
+}
+
+/**
+ * Where Claude Code on Vertex AI sends its requests, given the region the
+ * student picked in the wizard (unset counts as "global").
+ *
+ *  - "global"                 -> aiplatform.googleapis.com
+ *  - "eu" / "us" (multi-region) -> aiplatform.{eu,us}.rep.googleapis.com
+ *  - any other region, e.g. "us-east5" -> {region}-aiplatform.googleapis.com
+ *
+ * The multi-regional host is shaped differently from the single-region one,
+ * which is why a plain `{region}-` template is not enough.
+ *
+ * Claude Code's own default Vertex base URL ends in `/v1`, and it appends
+ * `/projects/...` to whatever ANTHROPIC_VERTEX_BASE_URL says. Pointing that
+ * variable at the proxy drops the `/v1`, so the proxy puts it back.
+ *
+ * Claude Code builds its own request paths from CLOUD_ML_REGION, so a shell
+ * value that differs from the saved answer gets a note, not an error: the
+ * student may know exactly what they are doing.
+ */
+export function vertexUpstream(
+  choice: AgentChoice,
+  env: NodeJS.ProcessEnv
+): { host: string; pathPrefix: string; notes: string[] } | { error: string } {
+  const region = normalizeVertexRegion(choice.region);
+  if (!region) {
+    return {
+      error:
+        `"${choice.region}" is not a valid Vertex AI region. Run with --force ` +
+        `to choose again. Use "global", a multi-region ("eu", "us") or a ` +
+        `region like "us-east5".`,
+    };
+  }
+  const host =
+    region === "global"
+      ? "aiplatform.googleapis.com"
+      : region === "eu" || region === "us"
+        ? `aiplatform.${region}.rep.googleapis.com`
+        : `${region}-aiplatform.googleapis.com`;
+
+  const notes: string[] = [`Forwarding to Vertex AI region "${region}".`];
+  const shell = env.CLOUD_ML_REGION?.trim();
+  if (shell && shell.toLowerCase() !== region) {
+    notes.push(
+      `CLOUD_ML_REGION is "${shell}" in this shell, but you picked "${region}". ` +
+        `Claude Code builds its request paths from CLOUD_ML_REGION, so the ` +
+        `two should match. Run with --force to pick again.`
+    );
+  }
+  return { host, pathPrefix: "/v1", notes };
+}
 
 /**
  * Ordered by popularity, decided 2026-08-06. The wizard shows them in this
@@ -423,8 +557,10 @@ const AGENTS: AgentEntry[] = [
       {
         id: "vertex",
         label: "Google Vertex AI",
-        // Fixed to the global endpoint on purpose — see the region note below.
+        // The default (global) host. resolveUpstream picks the real one from
+        // the region the student typed in the wizard.
         upstreamHost: "aiplatform.googleapis.com",
+        resolveUpstream: vertexUpstream,
         // Vertex's Claude endpoint is Anthropic's own Messages API shape,
         // routed by URL path instead of a body field — the model ID moves
         // from the body's "model" key into the URL
@@ -449,10 +585,10 @@ const AGENTS: AgentEntry[] = [
             "plain Anthropic route above, is silently ignored in Vertex mode — " +
             "that mismatch is the usual reason a Vertex student's logs folder " +
             "stays empty.",
-          "Only CLOUD_ML_REGION=global is supported by this entry. A regional " +
-            "value (us-east5, say) talks to a different host " +
-            "({region}-aiplatform.googleapis.com), which this entry does not " +
-            "resolve to yet — ask for it via the issue tracker if you hit this.",
+          "The upstream host follows the region you typed in the wizard: " +
+            "global, a multi-region (eu, us) or a single region (us-east5, " +
+            "say). It must match the CLOUD_ML_REGION you run Claude Code " +
+            "with. Run with --force to change it.",
           "ENABLE_TOOL_SEARCH=true matters here for the same reason it does on " +
             "the plain Anthropic route above: a non-default host turns off tool " +
             "search unless this is set.",
@@ -474,7 +610,7 @@ const AGENTS: AgentEntry[] = [
         // which is https://chatgpt.com/backend-api/codex.
         suffix: "/backend-api/codex",
         bin: "codex",
-        args: ["-c", `'openai_base_url="{baseUrl}"'`],
+        args: ["-c", "openai_base_url='{baseUrl}'"],
         notes: [CODEX_OVERRIDE_NOTE],
       },
       {
@@ -486,7 +622,7 @@ const AGENTS: AgentEntry[] = [
         // appends `responses` to it, so the base URL keeps the /v1.
         suffix: "/v1",
         bin: "codex",
-        args: ["-c", `'openai_base_url="{baseUrl}"'`],
+        args: ["-c", "openai_base_url='{baseUrl}'"],
         // The only usable template for a custom Codex target: Codex only
         // ever speaks the OpenAI-compatible wire format, so it is the
         // catch-all for every choice, including "anthropic" — a mismatch
@@ -830,6 +966,28 @@ const AGENTS: AgentEntry[] = [
     ],
   },
   {
+    id: "mistral-vibe",
+    label: "Mistral Vibe",
+    providers: [
+      {
+        id: "mistral",
+        label: "Mistral",
+        upstreamHost: "api.mistral.ai",
+        // Mistral's chat API is OpenAI's chat/completions shape, plus
+        // list-shaped content (thinking and text chunks) on reasoning models,
+        // which the openai renderer reads too.
+        renderer: "openai",
+        suffix: "/v1",
+        env: [
+          ["VIBE_PROVIDERS", VIBE_PROVIDERS],
+          ["VIBE_ENABLE_TELEMETRY", "false"],
+        ],
+        bin: "vibe",
+        notes: [VIBE_NOTE, VIBE_TELEMETRY_NOTE],
+      },
+    ],
+  },
+  {
     id: "amp",
     label: "Amp",
     reason:
@@ -995,7 +1153,19 @@ function withEnv(
       bin,
     ].join("; ");
   }
-  return [...env.map(([key, value]) => `${key}=${value}`), bin].join(" ");
+  return [
+    ...env.map(([key, value]) => `${key}=${posixValue(value)}`),
+    bin,
+  ].join(" ");
+}
+
+/**
+ * A POSIX assignment value, quoted only when the shell would otherwise split
+ * or expand it. URLs and plain words print bare, as they always have; a JSON
+ * value (Mistral Vibe's VIBE_PROVIDERS) is single-quoted.
+ */
+function posixValue(value: string): string {
+  return /^[\w@%+=:,./-]*$/.test(value) ? value : shellQuote(value);
 }
 
 /** Quote one complete POSIX shell argument, including embedded single quotes. */
@@ -1312,7 +1482,12 @@ function resolveCustomTarget(
  */
 export function resolveChoice(
   choice: AgentChoice,
-  options: { port: number; platform: NodeJS.Platform }
+  options: {
+    port: number;
+    platform: NodeJS.Platform;
+    /** Read only to flag a CLOUD_ML_REGION that disagrees with the saved region. */
+    env?: NodeJS.ProcessEnv;
+  }
 ): Resolution {
   const agent = AGENTS.find((a) => a.id === choice.agent);
 
@@ -1380,13 +1555,25 @@ export function resolveChoice(
 
   const baseUrl = `http://localhost:${options.port}${provider.suffix ?? ""}`;
 
+  let upstreamHost = provider.upstreamHost;
+  let upstreamPathPrefix: string | undefined;
+  let extraNotes: string[] = [];
+  if (provider.resolveUpstream) {
+    const upstream = provider.resolveUpstream(choice, options.env ?? {});
+    if ("error" in upstream) return { kind: "error", message: upstream.error };
+    upstreamHost = upstream.host;
+    upstreamPathPrefix = upstream.pathPrefix;
+    extraNotes = upstream.notes ?? [];
+  }
+
   return {
     kind: "target",
     agent: agent.id,
     agentLabel: agent.label,
     provider: provider.id,
     providerLabel: provider.label,
-    upstreamHost: provider.upstreamHost,
+    upstreamHost,
+    ...(upstreamPathPrefix ? { upstreamPathPrefix } : {}),
     renderer: provider.renderer,
     baseUrl,
     command: buildCommand(provider, baseUrl, options.platform),
@@ -1394,7 +1581,7 @@ export function resolveChoice(
       ...file,
       body: file.body.replace(/\{baseUrl\}/g, baseUrl),
     })),
-    notes: provider.notes ?? [],
+    notes: [...(provider.notes ?? []), ...extraNotes],
     warnings: provider.warnings ?? [],
   };
 }

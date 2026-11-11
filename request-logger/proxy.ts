@@ -44,8 +44,72 @@ type ProxyTarget = ResolvedTarget | CustomTarget;
 const PORT = Number(process.env.PORT ?? 8787);
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const LOG_DIR = path.join(HERE, "logs");
-const STATE_FILE = path.join(HERE, ".agent-choice.json");
+
+// ---------------------------------------------------------------------------
+// Test-only overrides
+// ---------------------------------------------------------------------------
+
+/**
+ * The two environment variables the end-to-end harness (e2e/) sets, and
+ * nothing else does. A student never sets either, and with both unset every
+ * path and every upstream is exactly what it has always been.
+ *
+ *  - REQUEST_LOGGER_TEST_DIR moves the saved choice (.agent-choice.json) and
+ *    the logs/ folder out of request-logger/ into another directory, so a
+ *    test run never reads or overwrites the student's own.
+ *  - REQUEST_LOGGER_TEST_UPSTREAM replaces the scheme, host and port every
+ *    request is forwarded to — a catalogue target's fixed host included —
+ *    with one origin, e.g. http://127.0.0.1:4010 (a fake upstream). The
+ *    request path, and a custom target's path prefix, are kept as they are,
+ *    so the fake sees exactly the path the real host would have.
+ *
+ * The banner names the override whenever one is set, so it cannot go unseen.
+ */
+export const TEST_DIR_ENV = "REQUEST_LOGGER_TEST_DIR";
+export const TEST_UPSTREAM_ENV = "REQUEST_LOGGER_TEST_UPSTREAM";
+
+export interface Settings {
+  logDir: string;
+  stateFile: string;
+  /** Only set by REQUEST_LOGGER_TEST_UPSTREAM. Null means "the target's own host". */
+  upstreamOverride: URL | null;
+}
+
+/** Read the test-only overrides. Pure: give it an env and a home folder. */
+export function readSettings(
+  env: Record<string, string | undefined>,
+  here: string
+): Settings {
+  const dir = env[TEST_DIR_ENV] ? path.resolve(env[TEST_DIR_ENV]!) : here;
+  return {
+    logDir: path.join(dir, "logs"),
+    stateFile: path.join(dir, ".agent-choice.json"),
+    upstreamOverride: parseUpstreamOverride(env[TEST_UPSTREAM_ENV]),
+  };
+}
+
+function parseUpstreamOverride(raw: string | undefined): URL | null {
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`${TEST_UPSTREAM_ENV} is not a URL: ${raw}`);
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`${TEST_UPSTREAM_ENV} must be http:// or https://: ${raw}`);
+  }
+  if (url.pathname !== "/" || url.search || url.hash) {
+    throw new Error(
+      `${TEST_UPSTREAM_ENV} must be an origin only (scheme, host, port), with no path: ${raw}`
+    );
+  }
+  return url;
+}
+
+const SETTINGS = readSettings(process.env, HERE);
+const LOG_DIR = SETTINGS.logDir;
+const STATE_FILE = SETTINGS.stateFile;
 
 // ---------------------------------------------------------------------------
 // Proxying
@@ -68,11 +132,23 @@ function baseName(target: ProxyTarget): string {
  * arbitrary port (a local Ollama server, say), so its scheme and port are
  * parsed from the base URL instead of assumed.
  */
-export function upstreamConnection(target: ProxyTarget): {
+export function upstreamConnection(
+  target: ProxyTarget,
+  override: URL | null = null
+): {
   hostname: string;
   port: number;
   useHttps: boolean;
 } {
+  // Test-only: see REQUEST_LOGGER_TEST_UPSTREAM. Never set for a student.
+  if (override) {
+    const useHttps = override.protocol === "https:";
+    return {
+      hostname: override.hostname,
+      port: override.port ? Number(override.port) : useHttps ? 443 : 80,
+      useHttps,
+    };
+  }
   if (target.kind === "target") {
     return { hostname: target.upstreamHost, port: 443, useHttps: true };
   }
@@ -88,8 +164,8 @@ export function upstreamConnection(target: ProxyTarget): {
 /**
  * The path prefix a CustomTarget's base URL carries, if any — e.g.
  * "/zen/go" for https://opencode.ai/zen/go. Empty for a bare origin, and
- * always empty for a catalogue ResolvedTarget, which never carries one (see
- * upstreamHost). handle() prepends this to each request's own path so a
+ * empty for a catalogue ResolvedTarget unless its provider declares one
+ * (Vertex AI's "/v1"). handle() prepends this to each request's own path so a
  * student-typed base URL with a path segment is not silently dropped —
  * without it, https://opencode.ai/zen/go would forward to
  * https://opencode.ai/v1/chat/completions instead of
@@ -102,7 +178,7 @@ export function upstreamConnection(target: ProxyTarget): {
  * caller from constructing a CustomTarget by hand with a trailing slash.
  */
 export function upstreamPathPrefix(target: ProxyTarget): string {
-  if (target.kind === "target") return "";
+  if (target.kind === "target") return target.upstreamPathPrefix ?? "";
   const { pathname } = new URL(target.upstreamBaseUrl);
   return pathname === "/" ? "" : pathname.replace(/\/+$/, "");
 }
@@ -152,7 +228,10 @@ function handle(
     const timestamp = new Date().toISOString();
     const base = baseName(target);
     const encoding = req.headers["content-encoding"];
-    const { hostname, port, useHttps } = upstreamConnection(target);
+    const { hostname, port, useHttps } = upstreamConnection(
+      target,
+      SETTINGS.upstreamOverride
+    );
 
     const onUpstreamResponse = (upstreamRes: http.IncomingMessage) => {
       res.writeHead(upstreamRes.statusCode ?? 502, upstreamRes.headers);
@@ -199,7 +278,9 @@ function handle(
         res.writeHead(502, { "content-type": "application/json" });
       }
       res.end(
-        JSON.stringify({ error: `request-logger upstream error: ${err.message}` })
+        JSON.stringify({
+          error: `request-logger upstream error: ${err.message}`,
+        })
       );
     });
 
@@ -230,7 +311,9 @@ export function rejectUpgrade(req: http.IncomingMessage, socket: Duplex): void {
       `[request-logger] ${req.method ?? "GET"} ${req.url ?? "/"} tried a WebSocket upgrade -> 426 (forcing HTTP fallback)`
     )
   );
-  socket.end("HTTP/1.1 426 Upgrade Required\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
+  socket.end(
+    "HTTP/1.1 426 Upgrade Required\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"
+  );
 }
 
 interface Capture {
@@ -288,7 +371,11 @@ export interface BurstResult {
   justDetected: boolean;
 }
 
-export function burstKey(method: string, reqPath: string, statusCode: number): string {
+export function burstKey(
+  method: string,
+  reqPath: string,
+  statusCode: number
+): string {
   return `${method} ${reqPath} ${statusCode}`;
 }
 
@@ -310,7 +397,7 @@ export function trackBurst(
   };
 }
 
-/** Module-level on purpose: one guard for the whole process, the same as LOG_DIR. */
+/** Module-level on purpose: one guard for the whole process, the same as SETTINGS. */
 let burstState: BurstState | null = null;
 
 function writeCapture(c: Capture): void {
@@ -364,8 +451,14 @@ function writeCapture(c: Capture): void {
     fs.mkdirSync(LOG_DIR, { recursive: true });
     // The raw file keeps the bytes exactly as they arrived, so the request can
     // still be replayed. Only the .md is decoded.
-    fs.writeFileSync(path.join(LOG_DIR, `${c.base}.request.txt`), c.requestBody);
-    fs.writeFileSync(path.join(LOG_DIR, `${c.base}.response.txt`), c.responseRaw);
+    fs.writeFileSync(
+      path.join(LOG_DIR, `${c.base}.request.txt`),
+      c.requestBody
+    );
+    fs.writeFileSync(
+      path.join(LOG_DIR, `${c.base}.response.txt`),
+      c.responseRaw
+    );
     fs.writeFileSync(
       path.join(LOG_DIR, `${c.base}.md`),
       renderMarkdown({
@@ -383,7 +476,9 @@ function writeCapture(c: Capture): void {
     );
     console.log(
       `${dim(`[request-logger] ${label}  ${c.method} ${c.path} ->`)} ${c.statusCode}  ${bold(
-        `logs/${c.base}.md`
+        LOG_DIR === path.join(HERE, "logs")
+          ? `logs/${c.base}.md`
+          : path.join(LOG_DIR, `${c.base}.md`)
       )}`
     );
   } catch (err) {
@@ -408,13 +503,19 @@ function field(label: string, value: string): void {
 function printBanner(target: ProxyTarget): void {
   const rule = dim("-".repeat(72));
   const forwards =
-    target.kind === "target" ? `https://${target.upstreamHost}` : target.upstreamBaseUrl;
+    target.kind === "target"
+      ? `https://${target.upstreamHost}${target.upstreamPathPrefix ?? ""}`
+      : target.upstreamBaseUrl;
   console.log("");
   console.log(rule);
   field("Agent", bold(`${target.agentLabel} (${target.providerLabel})`));
   field("Listening", `http://localhost:${PORT}`);
   field("Forwards", forwards);
   field("Logs", dim(LOG_DIR));
+  const override = SETTINGS.upstreamOverride;
+  if (override) {
+    field("TEST ONLY", bold(`${TEST_UPSTREAM_ENV} is set: forwarding to ${override.origin} instead`));
+  }
   console.log(rule);
 
   for (const file of target.setup) {
@@ -475,7 +576,11 @@ async function main(): Promise<void> {
   let choice = force ? null : loadChoice(STATE_FILE);
   if (!choice) choice = await ask(!force);
 
-  let resolution = resolveChoice(choice, { port: PORT, platform: process.platform });
+  let resolution = resolveChoice(choice, {
+    port: PORT,
+    platform: process.platform,
+    env: process.env,
+  });
 
   // A saved choice the catalogue no longer understands is not the student's
   // fault. Ask again rather than making them find the flag.
@@ -484,7 +589,11 @@ async function main(): Promise<void> {
     console.log(`[request-logger] ${resolution.message}`);
     // A saved file exists, so the student already asked to be remembered.
     choice = await ask(false);
-    resolution = resolveChoice(choice, { port: PORT, platform: process.platform });
+    resolution = resolveChoice(choice, {
+      port: PORT,
+      platform: process.platform,
+      env: process.env,
+    });
   }
 
   if (resolution.kind === "error") {
@@ -522,7 +631,9 @@ async function main(): Promise<void> {
     const rule = dim("-".repeat(72));
     console.log("");
     console.log(rule);
-    console.log(`  ${bold(resolution.agentLabel)} cannot be logged by this tool.`);
+    console.log(
+      `  ${bold(resolution.agentLabel)} cannot be logged by this tool.`
+    );
     console.log(rule);
     console.log("");
     for (const line of wrap(resolution.reason, 68)) console.log(`  ${line}`);
@@ -535,7 +646,9 @@ async function main(): Promise<void> {
     );
     console.log(dim("  Only the first kind can ever be inspected."));
     console.log("");
-    console.log("  To follow the lesson, install one of the other agents, then run:");
+    console.log(
+      "  To follow the lesson, install one of the other agents, then run:"
+    );
     console.log("");
     console.log(`      ${bold("npm run request-logger")}`);
     console.log("");
@@ -578,7 +691,8 @@ function wrap(text: string, width: number): string[] {
 // run request-logger`, or `tsx request-logger/proxy.ts`), not when it is
 // imported — the tests import pure functions like upstreamConnection from
 // this module, and must not trigger the interactive wizard by doing so.
-const isMain = path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url);
+const isMain =
+  path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url);
 if (isMain) {
   main().catch((err) => {
     console.error(`[request-logger] ${(err as Error).message}`);

@@ -93,7 +93,9 @@ describe("renderMarkdown with a compressed body", () => {
       agent: "Pi (ChatGPT)",
       renderer: "openai",
       path: "/backend-api/codex/responses",
-      requestBody: zlib.zstdCompressSync(body({ model: "gpt-5.1", input: "hi" })),
+      requestBody: zlib.zstdCompressSync(
+        body({ model: "gpt-5.1", input: "hi" })
+      ),
       requestEncoding: "zstd",
       responseRaw: "",
     });
@@ -110,7 +112,11 @@ describe("renderMarkdown for Anthropic", () => {
     model: "claude-sonnet-4-5",
     system: "You are Claude Code.",
     tools: [
-      { name: "Read", description: "Read a file", input_schema: { type: "object" } },
+      {
+        name: "Read",
+        description: "Read a file",
+        input_schema: { type: "object" },
+      },
     ],
     messages: [{ role: "user", content: "hello" }],
   };
@@ -161,7 +167,9 @@ describe("renderMarkdown for OpenAI", () => {
     requestBody: body({
       model: "gpt-5.1",
       instructions: "You are Codex.",
-      tools: [{ type: "function", name: "shell", parameters: { type: "object" } }],
+      tools: [
+        { type: "function", name: "shell", parameters: { type: "object" } },
+      ],
       input: [{ type: "message", role: "user", content: "hello" }],
     }),
     responseRaw:
@@ -179,6 +187,52 @@ describe("renderMarkdown for OpenAI", () => {
 
   it("reassembles the streamed reply", () => {
     expect(out).toContain("hi");
+  });
+});
+
+describe("renderMarkdown for Mistral's chat completions", () => {
+  // Mistral's chat API is OpenAI-shaped, except that a reasoning model's
+  // content — in a streamed delta and in a replayed assistant message — can be
+  // a list of chunks mixing "thinking" and "text", instead of a plain string.
+  const out = renderMarkdown({
+    ...BASE,
+    agent: "Mistral Vibe",
+    renderer: "openai",
+    path: "/v1/chat/completions",
+    requestBody: body({
+      model: "mistral-vibe-cli-latest",
+      messages: [
+        { role: "system", content: "You are Vibe." },
+        { role: "user", content: "hello" },
+        {
+          role: "assistant",
+          content: [
+            { type: "thinking", thinking: [{ type: "text", text: "earlier reasoning" }] },
+            { type: "text", text: "earlier answer" },
+          ],
+        },
+        { role: "user", content: "again" },
+      ],
+    }),
+    responseRaw:
+      'data: {"choices":[{"index":0,"delta":{"role":"assistant","content":[{"type":"thinking","thinking":[{"type":"text","text":"pondering"}]}]},"finish_reason":null}]}\n\n' +
+      'data: {"choices":[{"index":0,"delta":{"content":[{"type":"text","text":"Hel"}]},"finish_reason":null}]}\n\n' +
+      'data: {"choices":[{"index":0,"delta":{"content":"lo"},"finish_reason":"stop"}]}\n\n' +
+      "data: [DONE]\n\n",
+  });
+
+  it("joins the reply text across string and list-shaped deltas", () => {
+    expect(out).toContain("<assistant-text>\n\nHello\n\n</assistant-text>");
+  });
+
+  it("separates the streamed thinking from the reply", () => {
+    expect(out).toContain("<thinking>\n\npondering\n\n</thinking>");
+  });
+
+  it("shows a replayed assistant message's thinking as thinking, not as a JSON dump", () => {
+    expect(out).toContain("<thinking>\n\nearlier reasoning\n\n</thinking>");
+    expect(out).toContain("earlier answer");
+    expect(out).not.toContain('"type": "thinking"');
   });
 });
 
@@ -283,7 +337,9 @@ const GEMINI_REQUEST = {
     { role: "user", parts: [{ text: "list my files" }] },
     {
       role: "model",
-      parts: [{ functionCall: { name: "list_directory", args: { path: "." } } }],
+      parts: [
+        { functionCall: { name: "list_directory", args: { path: "." } } },
+      ],
     },
     {
       role: "user",
@@ -308,7 +364,10 @@ const GEMINI_REQUEST = {
       ],
     },
   ],
-  generationConfig: { temperature: 0, thinkingConfig: { includeThoughts: true } },
+  generationConfig: {
+    temperature: 0,
+    thinkingConfig: { includeThoughts: true },
+  },
 };
 
 describe("renderMarkdown for Gemini with an API key", () => {
