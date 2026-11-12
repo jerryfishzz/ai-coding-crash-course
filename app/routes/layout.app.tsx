@@ -1,6 +1,6 @@
 import { Outlet } from "react-router";
 import type { Route } from "./+types/layout.app";
-import { Sidebar } from "~/components/sidebar";
+import { MobileNavigation, Sidebar } from "~/components/sidebar";
 import { DevUI } from "~/components/dev-ui";
 import { Toaster } from "sonner";
 import { getAllUsers, getUserById } from "~/services/userService";
@@ -13,6 +13,15 @@ import {
 } from "~/services/progressService";
 import { getCountryTierInfo, COUNTRIES } from "~/lib/ppp";
 import { isTeamAdmin } from "~/services/teamService";
+import { MainScroll } from "~/components/main-scroll";
+import { UnreadActivity } from "~/components/discussions/unread-activity";
+import { emptyUnreadCounts } from "~/components/discussions/unread-controller";
+import { getDiscussionUnreadCounts } from "~/services/discussions";
+import { resolveCountry } from "~/lib/country.server";
+
+export function headers() {
+  return { "Cache-Control": "private, no-store" };
+}
 
 export async function loader({ request }: Route.LoaderArgs) {
   const users = getAllUsers();
@@ -61,6 +70,9 @@ export async function loader({ request }: Route.LoaderArgs) {
     countryTierInfo,
     countries: COUNTRIES,
     isTeamAdmin: currentUserId ? isTeamAdmin(currentUserId) : false,
+    unreadCounts: currentUser
+      ? getDiscussionUnreadCounts(currentUser.id, await resolveCountry(request))
+      : emptyUnreadCounts,
   };
 }
 
@@ -76,23 +88,44 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   } = loaderData;
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar
-        currentUser={currentUser}
-        recentCourses={recentCourses}
-        isTeamAdmin={userIsTeamAdmin}
-      />
-      <main className="flex-1 overflow-y-auto">
-        <Outlet />
-      </main>
-      <DevUI
-        users={users}
-        currentUser={currentUser}
-        devCountry={devCountry}
-        countryTierInfo={countryTierInfo}
-        countries={countries}
-      />
-      <Toaster position="bottom-right" richColors closeButton />
-    </div>
+    <UnreadActivity
+      key={currentUser?.id ?? "signed-out"}
+      initialCounts={loaderData.unreadCounts}
+      enabled={currentUser !== null}
+    >
+      <div className="flex h-dvh flex-col overflow-hidden md:flex-row">
+        <MobileNavigation
+          currentUser={currentUser}
+          recentCourses={recentCourses}
+          isTeamAdmin={userIsTeamAdmin}
+          tools={
+            <DevUI
+              users={users}
+              currentUser={currentUser}
+              devCountry={devCountry}
+              countryTierInfo={countryTierInfo}
+              countries={countries}
+              placement="menu"
+            />
+          }
+        />
+        <Sidebar
+          currentUser={currentUser}
+          recentCourses={recentCourses}
+          isTeamAdmin={userIsTeamAdmin}
+        />
+        <MainScroll>
+          <Outlet />
+        </MainScroll>
+        <DevUI
+          users={users}
+          currentUser={currentUser}
+          devCountry={devCountry}
+          countryTierInfo={countryTierInfo}
+          countries={countries}
+        />
+        <Toaster position="bottom-right" richColors closeButton />
+      </div>
+    </UnreadActivity>
   );
 }

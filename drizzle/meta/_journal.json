@@ -43,6 +43,13 @@
       "when": 1792812764469,
       "tag": "0005_course_rating_timestamps",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793570977964,
+      "tag": "0006_lesson_discussions",
+      "breakpoints": true
     }
   ]
 }

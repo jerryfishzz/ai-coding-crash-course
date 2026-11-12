@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useFetcher } from "react-router";
+import { Link, useFetcher, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import {
   DragDropContext,
@@ -73,6 +73,14 @@ import {
 import { data, isRouteErrorResponse } from "react-router";
 import { z } from "zod";
 import { parseFormData, parseParams } from "~/lib/validation";
+import { getCourseDiscussionSettings } from "~/services/discussions";
+import { discussionSettingResponse } from "~/lib/discussion-settings.server";
+import { DiscussionSetting } from "~/components/discussions/discussion-setting";
+import {
+  discussionReportResponse,
+  loadDiscussionReports,
+} from "~/lib/discussion-reports.server";
+import { CourseReports } from "~/components/discussions/course-reports";
 
 const courseEditorParamsSchema = z.object({
   courseId: z.coerce.number().int(),
@@ -102,6 +110,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
     { title: `Edit: ${title} — Cadence` },
     { name: "description", content: `Edit course: ${title}` },
   ];
+}
+
+export function headers({ actionHeaders }: Route.HeadersArgs) {
+  const result = new Headers(actionHeaders);
+  result.set("Cache-Control", "private, no-store");
+  return result;
 }
 
 export async function loader({ params, request }: Route.LoaderArgs) {
@@ -184,8 +198,55 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   });
 
   const quizCount = lessonQuizzes.length;
+  const search = new URL(request.url).searchParams;
 
-  return { course, lessonCount, enrollmentCount, students, quizCount };
+  return {
+    course,
+    lessonCount,
+    enrollmentCount,
+    students,
+    quizCount,
+    discussionSettings: getCourseDiscussionSettings(currentUserId, courseId),
+    discussionReports:
+      search.get("tab") === "reports"
+        ? loadDiscussionReports(currentUserId, courseId, search)
+        : null,
+  };
+}
+
+export async function clientAction({
+  request,
+  serverAction,
+}: Route.ClientActionArgs) {
+  const intent = (await request.clone().formData()).get("intent");
+  if (
+    intent !== "discussion-dismiss-report" &&
+    intent !== "discussion-hide-reported-content"
+  )
+    return serverAction();
+  try {
+    return await serverAction();
+  } catch (error) {
+    if (
+      request.signal.aborted ||
+      (error instanceof Response && error.status >= 300 && error.status < 400)
+    )
+      throw error;
+    return data(
+      {
+        discussionResult: {
+          ok: false as const,
+          status: 503,
+          error: {
+            code: "submission_failed",
+            message:
+              "We couldn’t confirm that your review was saved. Refresh the reports before trying again.",
+          },
+        },
+      },
+      { status: 503 }
+    );
+  }
 }
 
 export async function action({ params, request }: Route.ActionArgs) {
@@ -212,6 +273,25 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
+  if (
+    formData.get("intent") === "discussion-dismiss-report" ||
+    formData.get("intent") === "discussion-hide-reported-content"
+  ) {
+    return discussionReportResponse(
+      currentUserId,
+      courseId,
+      formData,
+      request.method
+    );
+  }
+  if (formData.get("intent") === "discussion-set-course") {
+    return discussionSettingResponse(
+      currentUserId,
+      { level: "course", courseId },
+      formData,
+      request.method
+    );
+  }
   const parsed = parseFormData(formData, courseEditorActionSchema);
 
   if (!parsed.success) {
@@ -983,8 +1063,29 @@ function statusBadgeColor(status: string) {
 
 export default function InstructorCourseEditor({
   loaderData,
-}: Route.ComponentProps) {
+}: Pick<Route.ComponentProps, "loaderData">) {
   const { course, lessonCount, enrollmentCount, students, quizCount } = loaderData;
+  const [search, setSearch] = useSearchParams();
+  const selectedTab = search.get("tab");
+  const tab =
+    selectedTab &&
+    ["settings", "sales-copy", "students", "reports"].includes(selectedTab)
+      ? selectedTab
+      : "content";
+  const tabScroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const scroller = tabScroller.current;
+    const active = scroller?.querySelector<HTMLElement>(
+      '[role="tab"][aria-selected="true"]'
+    );
+    if (!scroller || !active) return;
+    const bounds = scroller.getBoundingClientRect();
+    const target = active.getBoundingClientRect();
+    if (target.right > bounds.right)
+      scroller.scrollLeft += target.right - bounds.right;
+    else if (target.left < bounds.left)
+      scroller.scrollLeft += target.left - bounds.left;
+  }, [tab]);
   const statusFetcher = useFetcher();
   const reorderFetcher = useFetcher();
   const lessonReorderFetcher = useFetcher();
@@ -1129,7 +1230,7 @@ export default function InstructorCourseEditor({
   }
 
   return (
-    <div className="mx-auto max-w-7xl p-6 lg:p-8">
+    <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">
       {/* Breadcrumb */}
       <nav className="mb-6 text-sm text-muted-foreground">
         <Link to="/instructor" className="hover:text-foreground">
@@ -1175,25 +1276,44 @@ export default function InstructorCourseEditor({
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="content">
-        <TabsList>
-          <TabsTrigger value="content">
-            <BookOpen className="size-4" />
-            Content
-          </TabsTrigger>
-          <TabsTrigger value="settings">
-            <Settings className="size-4" />
-            Settings
-          </TabsTrigger>
-          <TabsTrigger value="sales-copy">
-            <FileText className="size-4" />
-            Sales Copy
-          </TabsTrigger>
-          <TabsTrigger value="students">
-            <Users className="size-4" />
-            Students
-          </TabsTrigger>
-        </TabsList>
+      <Tabs
+        value={tab}
+        onValueChange={(value) =>
+          setSearch(
+            (previous) => {
+              const next = new URLSearchParams(previous);
+              if (value === "content") next.delete("tab");
+              else next.set("tab", value);
+              return next;
+            },
+            { preventScrollReset: true }
+          )
+        }
+      >
+        <div ref={tabScroller} className="max-w-full overflow-x-auto p-1">
+          <TabsList aria-label="Course management">
+            <TabsTrigger value="content">
+              <BookOpen className="size-4" />
+              Content
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <Settings className="size-4" />
+              Settings
+            </TabsTrigger>
+            <TabsTrigger value="sales-copy">
+              <FileText className="size-4" />
+              Sales Copy
+            </TabsTrigger>
+            <TabsTrigger value="students">
+              <Users className="size-4" />
+              Students
+            </TabsTrigger>
+            <TabsTrigger value="reports">
+              <AlertTriangle className="size-4" />
+              Reports
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Content Tab */}
         <TabsContent value="content" className="mt-6">
@@ -1370,6 +1490,13 @@ export default function InstructorCourseEditor({
         {/* Settings Tab */}
         <TabsContent value="settings" className="mt-6">
           <div className="space-y-6">
+            <DiscussionSetting
+              level="course"
+              value={loaderData.discussionSettings.courseOverride}
+              inheritedEnabled={loaderData.discussionSettings.defaultEnabled}
+              canManage={loaderData.discussionSettings.canManage}
+              archived={loaderData.discussionSettings.archived}
+            />
             <Card>
               <CardHeader>
                 <h2 className="text-lg font-semibold">Course Status</h2>
@@ -1650,6 +1777,14 @@ export default function InstructorCourseEditor({
                 </div>
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+        <TabsContent value="reports" className="mt-6 min-w-0">
+          {loaderData.discussionReports && (
+            <CourseReports
+              view={loaderData.discussionReports}
+              courseSlug={course.slug}
+            />
           )}
         </TabsContent>
       </Tabs>

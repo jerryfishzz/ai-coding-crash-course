@@ -1,4 +1,10 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useCallback,
+  useState,
+} from "react";
 
 declare global {
   interface Window {
@@ -75,7 +81,9 @@ export function YouTubePlayer({
 }: YouTubePlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YT.Player | null>(null);
-  const trackingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const trackingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
   const [progress, setProgress] = useState(initialProgress);
   const [videoDuration, setVideoDuration] = useState(
     durationMinutes ? durationMinutes * 60 : 0
@@ -110,16 +118,18 @@ export function YouTubePlayer({
     }
   }, []);
 
+  const trackProgress = useEffectEvent(() => {
+    const player = playerRef.current;
+    if (!player || typeof player.getCurrentTime !== "function") return;
+    const pos = player.getCurrentTime();
+    sendTrackingEvent("progress", pos);
+    updateProgress();
+  });
+
   const startTracking = useCallback(() => {
     if (trackingIntervalRef.current) return;
-    trackingIntervalRef.current = setInterval(() => {
-      const player = playerRef.current;
-      if (!player || typeof player.getCurrentTime !== "function") return;
-      const pos = player.getCurrentTime();
-      sendTrackingEvent("progress", pos);
-      updateProgress();
-    }, 10_000);
-  }, [sendTrackingEvent, updateProgress]);
+    trackingIntervalRef.current = setInterval(() => trackProgress(), 10_000);
+  }, []);
 
   const stopTracking = useCallback(() => {
     if (trackingIntervalRef.current) {
@@ -128,23 +138,43 @@ export function YouTubePlayer({
     }
   }, []);
 
-  useEffect(() => {
-    if (!videoId || !containerRef.current) return;
+  // Resume/autoplay are initialization inputs. Fresh loader data must not seek
+  // or recreate a playing video. Event callbacks still use current permissions.
+  const onPlayerStateChange = useEffectEvent((event: YT.OnStateChangeEvent) => {
+    const p = event.target;
+    const pos = typeof p.getCurrentTime === "function" ? p.getCurrentTime() : 0;
+    switch (event.data) {
+      case window.YT.PlayerState.PLAYING:
+        sendTrackingEvent("play", pos);
+        startTracking();
+        updateProgress();
+        break;
+      case window.YT.PlayerState.PAUSED:
+        sendTrackingEvent("pause", pos);
+        stopTracking();
+        updateProgress();
+        break;
+      case window.YT.PlayerState.ENDED:
+        sendTrackingEvent("ended", pos);
+        stopTracking();
+        setProgress(100);
+        break;
+    }
+  });
 
-    let player: YT.Player | null = null;
-    let destroyed = false;
-
-    loadYouTubeAPI().then(() => {
-      if (destroyed || !containerRef.current) return;
-
-      player = new window.YT.Player(containerRef.current, {
-        videoId,
+  const createPlayer = useEffectEvent(
+    (container: HTMLDivElement, id: string) => {
+      const shouldAutoplay = autoplay;
+      setProgress(initialProgress);
+      setVideoDuration(durationMinutes ? durationMinutes * 60 : 0);
+      const player = new window.YT.Player(container, {
+        videoId: id,
         playerVars: {
           start: Math.floor(startPosition),
           enablejsapi: 1,
           rel: 0,
           modestbranding: 1,
-          ...(autoplay ? { autoplay: 1 } : {}),
+          ...(shouldAutoplay ? { autoplay: 1 } : {}),
         },
         events: {
           onReady: () => {
@@ -153,35 +183,36 @@ export function YouTubePlayer({
               const d = player.getDuration();
               if (d > 0) setVideoDuration(d);
             }
-            if (autoplay && player && typeof player.playVideo === "function") {
-              try { player.playVideo(); } catch { /* silently fail */ }
+            if (
+              shouldAutoplay &&
+              player &&
+              typeof player.playVideo === "function"
+            ) {
+              try {
+                player.playVideo();
+              } catch {
+                /* silently fail */
+              }
             }
           },
-          onStateChange: (event: YT.OnStateChangeEvent) => {
-            const p = event.target;
-            const pos =
-              typeof p.getCurrentTime === "function" ? p.getCurrentTime() : 0;
-
-            switch (event.data) {
-              case window.YT.PlayerState.PLAYING:
-                sendTrackingEvent("play", pos);
-                startTracking();
-                updateProgress();
-                break;
-              case window.YT.PlayerState.PAUSED:
-                sendTrackingEvent("pause", pos);
-                stopTracking();
-                updateProgress();
-                break;
-              case window.YT.PlayerState.ENDED:
-                sendTrackingEvent("ended", pos);
-                stopTracking();
-                setProgress(100);
-                break;
-            }
-          },
+          onStateChange: onPlayerStateChange,
         },
       });
+      return player;
+    }
+  );
+
+  useEffect(() => {
+    if (!videoId || !containerRef.current) return;
+    let player: YT.Player | null = null;
+    let destroyed = false;
+    // YouTube replaces its target element with an iframe. Give it a disposable
+    // child so React retains the outer container on reinitialization/cleanup.
+    const target = document.createElement("div");
+    containerRef.current.appendChild(target);
+    loadYouTubeAPI().then(() => {
+      if (destroyed) return;
+      player = createPlayer(target, videoId);
     });
 
     return () => {
@@ -191,13 +222,16 @@ export function YouTubePlayer({
         player.destroy();
       }
       playerRef.current = null;
+      target.remove();
     };
-  }, [videoId, startPosition, autoplay, sendTrackingEvent, startTracking, stopTracking, updateProgress]);
+  }, [lessonId, videoId, stopTracking]);
 
   if (!videoId) {
     return (
       <div className="mb-8 flex aspect-video items-center justify-center rounded-lg bg-muted">
-        <p className="text-muted-foreground">Invalid or unsupported video URL</p>
+        <p className="text-muted-foreground">
+          Invalid or unsupported video URL
+        </p>
       </div>
     );
   }
@@ -230,9 +264,7 @@ export function YouTubePlayer({
               role="switch"
               aria-checked={autoplay}
               className={`relative inline-flex h-5 w-9 items-center rounded-full border transition-colors ${
-                autoplay
-                  ? "border-primary bg-primary"
-                  : "border-input bg-muted"
+                autoplay ? "border-primary bg-primary" : "border-input bg-muted"
               }`}
               onClick={onToggleAutoplay}
             >

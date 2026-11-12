@@ -5,6 +5,8 @@ import {
   integer,
   real,
   uniqueIndex,
+  index,
+  foreignKey,
   check,
 } from "drizzle-orm/sqlite-core";
 
@@ -19,6 +21,9 @@ export enum CourseStatus {
   Published = "published",
   Archived = "archived",
 }
+
+export type DiscussionOverride = "inherit" | "enabled" | "disabled";
+export type DiscussionInboxKind = "notifications" | "discussion_inbox";
 
 export enum LessonProgressStatus {
   NotStarted = "not_started",
@@ -56,32 +61,45 @@ export const categories = sqliteTable("categories", {
   slug: text("slug").notNull().unique(),
 });
 
-export const courses = sqliteTable("courses", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  title: text("title").notNull(),
-  slug: text("slug").notNull().unique(),
-  description: text("description").notNull(),
-  notes: text("notes"),
-  salesCopy: text("sales_copy"),
-  instructorId: integer("instructor_id")
-    .notNull()
-    .references(() => users.id),
-  categoryId: integer("category_id")
-    .notNull()
-    .references(() => categories.id),
-  status: text("status").notNull().$type<CourseStatus>(),
-  coverImageUrl: text("cover_image_url"),
-  price: integer("price").notNull().default(0),
-  pppEnabled: integer("ppp_enabled", { mode: "boolean" })
-    .notNull()
-    .default(true),
-  createdAt: text("created_at")
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
-  updatedAt: text("updated_at")
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
-});
+export const courses = sqliteTable(
+  "courses",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    title: text("title").notNull(),
+    slug: text("slug").notNull().unique(),
+    description: text("description").notNull(),
+    notes: text("notes"),
+    salesCopy: text("sales_copy"),
+    instructorId: integer("instructor_id")
+      .notNull()
+      .references(() => users.id),
+    categoryId: integer("category_id")
+      .notNull()
+      .references(() => categories.id),
+    status: text("status").notNull().$type<CourseStatus>(),
+    coverImageUrl: text("cover_image_url"),
+    price: integer("price").notNull().default(0),
+    pppEnabled: integer("ppp_enabled", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    discussionOverride: text("discussion_override")
+      .notNull()
+      .$type<DiscussionOverride>()
+      .default("inherit"),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    updatedAt: text("updated_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => [
+    check(
+      "courses_discussion_override",
+      sql`${table.discussionOverride} in ('inherit', 'enabled', 'disabled')`
+    ),
+  ]
+);
 
 export const modules = sqliteTable("modules", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -106,6 +124,9 @@ export const lessons = sqliteTable("lessons", {
   githubRepoUrl: text("github_repo_url"),
   position: integer("position").notNull(),
   durationMinutes: integer("duration_minutes"),
+  discussionPaused: integer("discussion_paused", { mode: "boolean" })
+    .notNull()
+    .default(false),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
@@ -290,5 +311,174 @@ export const courseRatings = sqliteTable(
       "course_ratings_range",
       sql`${table.rating} between 1 and 5 and typeof(${table.rating}) = 'integer'`
     ),
+  ]
+);
+
+export const discussionSettings = sqliteTable(
+  "discussion_settings",
+  {
+    id: integer("id").primaryKey(),
+    defaultEnabled: integer("default_enabled", { mode: "boolean" })
+      .notNull()
+      .default(false),
+  },
+  (table) => [
+    check("discussion_settings_singleton", sql`${table.id} = 1`),
+    check(
+      "discussion_settings_boolean",
+      sql`${table.defaultEnabled} in (0, 1)`
+    ),
+  ]
+);
+
+const postTimestamps = () => ({
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+  editedAt: text("edited_at"),
+  deletedAt: text("deleted_at"),
+  hiddenAt: text("hidden_at"),
+  hiddenBy: integer("hidden_by").references(() => users.id),
+});
+
+export const discussionQuestions = sqliteTable(
+  "discussion_questions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    lessonId: integer("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    authorId: integer("author_id")
+      .notNull()
+      .references(() => users.id),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    ...postTimestamps(),
+    resolvedAt: text("resolved_at"),
+    resolvedBy: integer("resolved_by").references(() => users.id),
+  },
+  (table) => [
+    index("discussion_questions_lesson_order").on(
+      table.lessonId,
+      table.createdAt,
+      table.id
+    ),
+    index("discussion_questions_author_time").on(
+      table.authorId,
+      table.createdAt
+    ),
+  ]
+);
+
+export const discussionReplies = sqliteTable(
+  "discussion_replies",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    questionId: integer("question_id")
+      .notNull()
+      .references(() => discussionQuestions.id, { onDelete: "cascade" }),
+    authorId: integer("author_id")
+      .notNull()
+      .references(() => users.id),
+    body: text("body").notNull(),
+    ...postTimestamps(),
+  },
+  (table) => [
+    index("discussion_replies_question_order").on(
+      table.questionId,
+      table.createdAt,
+      table.id
+    ),
+    index("discussion_replies_author_time").on(table.authorId, table.createdAt),
+    uniqueIndex("discussion_replies_id_question").on(
+      table.id,
+      table.questionId
+    ),
+  ]
+);
+
+export const discussionReports = sqliteTable(
+  "discussion_reports",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    reporterId: integer("reporter_id")
+      .notNull()
+      .references(() => users.id),
+    questionId: integer("question_id").references(
+      () => discussionQuestions.id,
+      { onDelete: "cascade" }
+    ),
+    replyId: integer("reply_id").references(() => discussionReplies.id, {
+      onDelete: "cascade",
+    }),
+    reason: text("reason"),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    outcome: text("outcome").$type<"dismissed" | "hidden">(),
+    reviewedAt: text("reviewed_at"),
+    reviewedBy: integer("reviewed_by").references(() => users.id),
+  },
+  (table) => [
+    check(
+      "discussion_reports_one_target",
+      sql`(${table.questionId} is null) <> (${table.replyId} is null)`
+    ),
+    check(
+      "discussion_reports_outcome",
+      sql`${table.outcome} is null or ${table.outcome} in ('dismissed', 'hidden')`
+    ),
+    index("discussion_reports_question_review").on(
+      table.questionId,
+      table.reviewedAt
+    ),
+    index("discussion_reports_reply_review").on(
+      table.replyId,
+      table.reviewedAt
+    ),
+  ]
+);
+
+export const discussionNotifications = sqliteTable(
+  "discussion_notifications",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    recipientId: integer("recipient_id")
+      .notNull()
+      .references(() => users.id),
+    inboxKind: text("inbox_kind").notNull().$type<DiscussionInboxKind>(),
+    questionId: integer("question_id")
+      .notNull()
+      .references(() => discussionQuestions.id, { onDelete: "cascade" }),
+    replyId: integer("reply_id"),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    readAt: text("read_at"),
+  },
+  (table) => [
+    check(
+      "discussion_notifications_kind",
+      sql`${table.inboxKind} in ('notifications', 'discussion_inbox')`
+    ),
+    foreignKey({
+      columns: [table.replyId, table.questionId],
+      foreignColumns: [discussionReplies.id, discussionReplies.questionId],
+    }).onDelete("cascade"),
+    index("discussion_notifications_order").on(
+      table.recipientId,
+      table.inboxKind,
+      table.createdAt,
+      table.id
+    ),
+    index("discussion_notifications_unread")
+      .on(table.recipientId, table.inboxKind)
+      .where(sql`${table.readAt} is null`),
+    uniqueIndex("discussion_notifications_question_unique")
+      .on(table.recipientId, table.inboxKind, table.questionId)
+      .where(sql`${table.replyId} is null`),
+    uniqueIndex("discussion_notifications_reply_unique")
+      .on(table.recipientId, table.inboxKind, table.replyId)
+      .where(sql`${table.replyId} is not null`),
   ]
 );

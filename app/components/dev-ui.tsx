@@ -17,6 +17,7 @@ interface DevUIProps {
   devCountry: string | null;
   countryTierInfo: { tier: number; discount: number; label: string };
   countries: { code: string; name: string }[];
+  placement?: "floating" | "menu";
 }
 
 const roleBadgeColors: Record<string, string> = {
@@ -40,13 +41,20 @@ function RoleBadge({ role }: { role: string }) {
   );
 }
 
-export function DevUI({ users, currentUser, devCountry, countryTierInfo, countries }: DevUIProps) {
-  const [minimized, setMinimized] = useState(false);
+export function DevUI({
+  users,
+  currentUser,
+  devCountry,
+  countryTierInfo,
+  countries,
+  placement = "floating",
+}: DevUIProps) {
+  const [minimized, setMinimized] = useState(true);
   const [open, setOpen] = useState(false);
   const location = useLocation();
-  if (minimized) {
+  if (minimized && placement === "floating") {
     return (
-      <div className="fixed bottom-4 right-4 z-50">
+      <div className="fixed bottom-4 right-4 z-40 hidden md:block">
         <Button
           size="sm"
           variant="outline"
@@ -61,20 +69,29 @@ export function DevUI({ users, currentUser, devCountry, countryTierInfo, countri
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-72 rounded-lg border border-dashed bg-background/90 shadow-lg backdrop-blur-sm">
+    <div
+      className={
+        placement === "menu"
+          ? "min-w-0 rounded-lg border border-dashed bg-background"
+          : "fixed bottom-4 right-4 z-40 hidden w-72 rounded-lg border border-dashed bg-background/90 shadow-lg backdrop-blur-sm md:block"
+      }
+    >
       <div className="flex items-center justify-between border-b border-dashed px-3 py-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           DevUI
         </span>
-        <div className="flex gap-1">
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={() => setMinimized(true)}
-          >
-            <ChevronDown className="size-3" />
-          </Button>
-        </div>
+        {placement === "floating" && (
+          <div className="flex gap-1">
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={() => setMinimized(true)}
+              aria-label="Minimize development tools"
+            >
+              <ChevronDown className="size-3" />
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="p-3">
@@ -95,6 +112,7 @@ export function DevUI({ users, currentUser, devCountry, countryTierInfo, countri
             size="sm"
             variant="outline"
             className="w-full justify-between"
+            aria-expanded={open}
             onClick={() => setOpen(!open)}
           >
             Switch user
@@ -107,7 +125,12 @@ export function DevUI({ users, currentUser, devCountry, countryTierInfo, countri
           </Button>
 
           {open && (
-            <div className="absolute bottom-full mb-1 max-h-64 w-full overflow-y-auto rounded-md border bg-popover shadow-md">
+            <div
+              className={cn(
+                "max-h-64 w-full overflow-y-auto rounded-md border bg-popover shadow-md",
+                placement === "floating" ? "absolute bottom-full mb-1" : "mt-1"
+              )}
+            >
               {users.map((user) => (
                 <Form
                   key={user.id}
@@ -143,6 +166,7 @@ export function DevUI({ users, currentUser, devCountry, countryTierInfo, countri
           >
             <select
               name="country"
+              aria-label="PPP country"
               defaultValue={devCountry ?? ""}
               onChange={(e) => e.target.form?.requestSubmit()}
               className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"

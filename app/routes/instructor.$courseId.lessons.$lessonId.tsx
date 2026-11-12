@@ -18,6 +18,9 @@ import { AlertTriangle, ArrowLeft, ClipboardList, ExternalLink, Github, Save } f
 import { data, isRouteErrorResponse } from "react-router";
 import { z } from "zod";
 import { parseFormData, parseParams } from "~/lib/validation";
+import { getCourseDiscussionSettings } from "~/services/discussions";
+import { discussionSettingResponse } from "~/lib/discussion-settings.server";
+import { DiscussionSetting } from "~/components/discussions/discussion-setting";
 
 const instructorLessonParamsSchema = z.object({
   courseId: z.coerce.number().int(),
@@ -89,7 +92,13 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   const quiz = getQuizByLessonId(lessonId);
 
-  return { course, lesson, module: mod, quiz };
+  return {
+    course,
+    lesson,
+    module: mod,
+    quiz,
+    discussionSettings: getCourseDiscussionSettings(currentUserId, courseId, lessonId),
+  };
 }
 
 export async function action({ params, request }: Route.ActionArgs) {
@@ -126,6 +135,14 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
+  if (formData.get("intent") === "discussion-set-lesson") {
+    return discussionSettingResponse(
+      currentUserId,
+      { level: "lesson", courseId, lessonId },
+      formData,
+      request.method
+    );
+  }
   const parsed = parseFormData(formData, updateLessonSchema);
 
   if (!parsed.success) {
@@ -202,7 +219,7 @@ export default function InstructorLessonEditor({
   }
 
   return (
-    <div className="mx-auto max-w-7xl p-6 lg:p-8">
+    <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">
       {/* Unsaved changes blocker dialog */}
       {blocker.state === "blocked" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -254,8 +271,8 @@ export default function InstructorLessonEditor({
       </Link>
 
       <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold">{lesson.title}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="min-w-0 text-3xl font-bold [overflow-wrap:anywhere]">{lesson.title}</h1>
           <Link to={`/courses/${course.slug}/lessons/${lesson.id}`}>
             <Button variant="outline" size="sm">
               <ExternalLink className="mr-1.5 size-4" />
@@ -269,6 +286,13 @@ export default function InstructorLessonEditor({
       </div>
 
       <div className="space-y-6">
+        <DiscussionSetting
+          level="lesson"
+          value={loaderData.discussionSettings.lessonPaused ? "disabled" : "inherit"}
+          inheritedEnabled={loaderData.discussionSettings.courseEnabled}
+          canManage={loaderData.discussionSettings.canManage}
+          archived={loaderData.discussionSettings.archived}
+        />
         {/* Content */}
         <Card>
           <CardHeader>

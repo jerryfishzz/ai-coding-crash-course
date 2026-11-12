@@ -12,6 +12,9 @@ import { getEnrollmentCountForCourse } from "~/services/enrollmentService";
 import { getCurrentUserId } from "~/lib/session";
 import { getUserById } from "~/services/userService";
 import { parseFormData } from "~/lib/validation";
+import { getGlobalDiscussionSettings } from "~/services/discussions";
+import { discussionSettingResponse } from "~/lib/discussion-settings.server";
+import { DiscussionSetting } from "~/components/discussions/discussion-setting";
 import { UserRole, CourseStatus } from "~/db/schema";
 import { Card, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
@@ -66,7 +69,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     enrollmentCount: getEnrollmentCountForCourse(course.id),
   }));
 
-  return { courses: coursesWithDetails };
+  return {
+    courses: coursesWithDetails,
+    discussionSettings: getGlobalDiscussionSettings(currentUserId),
+  };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -82,6 +88,14 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
+  if (formData.get("intent") === "discussion-set-global") {
+    return discussionSettingResponse(
+      currentUserId,
+      { level: "global" },
+      formData,
+      request.method
+    );
+  }
   const parsed = parseFormData(formData, adminCourseActionSchema);
 
   if (!parsed.success) {
@@ -219,7 +233,7 @@ function CourseRowSkeleton() {
 
 export function HydrateFallback() {
   return (
-    <div className="mx-auto max-w-7xl p-6 lg:p-8">
+    <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
         <Skeleton className="h-9 w-52" />
         <Skeleton className="mt-2 h-5 w-72" />
@@ -252,10 +266,10 @@ export function HydrateFallback() {
 }
 
 export default function AdminCourses({ loaderData }: Route.ComponentProps) {
-  const { courses } = loaderData;
+  const { courses, discussionSettings } = loaderData;
 
   return (
-    <div className="mx-auto max-w-7xl p-6 lg:p-8">
+    <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">
       {/* Breadcrumb */}
       <nav className="mb-6 text-sm text-muted-foreground">
         <Link to="/" className="hover:text-foreground">
@@ -270,6 +284,14 @@ export default function AdminCourses({ loaderData }: Route.ComponentProps) {
         <p className="mt-1 text-muted-foreground">
           View all courses and manage their status
         </p>
+      </div>
+
+      <div className="mb-6">
+        <DiscussionSetting
+          level="global"
+          value={discussionSettings.defaultEnabled ? "enabled" : "disabled"}
+          canManage
+        />
       </div>
 
       <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
