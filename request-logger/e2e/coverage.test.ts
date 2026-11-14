@@ -42,4 +42,17 @@ describe("e2e coverage", () => {
       expect(recipe.name).toBe(provider ? `${agent}/${provider}` : agent);
     }
   });
+
+  it("keeps OpenCode e2e recipes independent of remote model discovery", () => {
+    const recipes = RECIPES.filter(
+      (recipe) => recipe.choice.agent === "opencode"
+    );
+    expect(recipes).toHaveLength(2);
+    for (const recipe of recipes) {
+      expect(recipe.env({ home: "", key: "test-key" })).toHaveProperty(
+        "OPENCODE_DISABLE_MODELS_FETCH",
+        "1"
+      );
+    }
+  });
 });
