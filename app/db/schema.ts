@@ -46,6 +46,9 @@ export enum TeamMemberRole {
 export const testTable = sqliteTable("test_table", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   note: text("note"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
 });
 
 export const users = sqliteTable("users", {

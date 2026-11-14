@@ -1,1 +1,0 @@
-**Database migrations:** Before changing the database schema, migrations, or seed script, or troubleshooting migration/seeding failures, read and follow [docs/database-migrations.md](docs/database-migrations.md).

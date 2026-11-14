@@ -79,7 +79,9 @@ async function seed() {
 
   console.log("Tables created.");
 
-  db.insert(schema.testTable).values({ note: "Sample test row" }).run();
+  db.insert(schema.testTable)
+    .values({ note: "Sample test row", createdAt: new Date().toISOString() })
+    .run();
 
   // ─── Users ───
   // 1 admin, 2 instructors, 5 students

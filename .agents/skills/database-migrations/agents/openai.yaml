@@ -1,0 +1,3 @@
+interface:
+  display_name: "Database Migrations"
+  short_description: "Manage schema changes, migrations, and seed data"
