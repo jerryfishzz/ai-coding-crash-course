@@ -8,7 +8,10 @@ export const opencode: Recipe = {
   name: "opencode/anthropic",
   choice: { agent: "opencode", provider: "anthropic" },
   install: () => npmTool("opencode", "opencode-ai", VERSION),
-  env: ({ key }) => ({ ANTHROPIC_API_KEY: key }),
+  env: ({ key }) => ({
+    ANTHROPIC_API_KEY: key,
+    OPENCODE_DISABLE_MODELS_FETCH: "1",
+  }),
   promptArgs: (prompt) => ["run", prompt],
   modelPath: /^\/v1\/messages$/,
 };
@@ -18,6 +21,9 @@ export const opencodeOpenAI: Recipe = {
   ...opencode,
   name: "opencode/openai",
   choice: { agent: "opencode", provider: "openai" },
-  env: ({ key }) => ({ OPENAI_API_KEY: key }),
+  env: ({ key }) => ({
+    OPENAI_API_KEY: key,
+    OPENCODE_DISABLE_MODELS_FETCH: "1",
+  }),
   modelPath: /^\/v1\/(responses|chat\/completions)$/,
 };
