@@ -47,6 +47,7 @@ async function seed() {
 
   // Drop and recreate tables for a clean seed
   sqlite.exec(`
+    DROP TABLE IF EXISTS test_table;
     DROP TABLE IF EXISTS discussion_notifications;
     DROP TABLE IF EXISTS discussion_reports;
     DROP TABLE IF EXISTS discussion_replies;
@@ -77,6 +78,8 @@ async function seed() {
   migrate(db, { migrationsFolder });
 
   console.log("Tables created.");
+
+  db.insert(schema.testTable).values({ note: "Sample test row" }).run();
 
   // ─── Users ───
   // 1 admin, 2 instructors, 5 students
@@ -1765,6 +1768,7 @@ You've completed the Building REST APIs course. You now have the skills to build
   );
 
   console.log("\n✓ Seed complete!");
+  console.log("  Test table: 1 row");
   console.log("  Users: 9 (1 admin, 2 instructors, 6 students)");
   console.log("  Categories: 5");
   console.log(

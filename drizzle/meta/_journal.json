@@ -50,6 +50,13 @@
       "when": 1793570977964,
       "tag": "0006_lesson_discussions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1794553865910,
+      "tag": "0007_watery_silver_samurai",
+      "breakpoints": true
     }
   ]
 }

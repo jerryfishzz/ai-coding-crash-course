@@ -43,6 +43,11 @@ export enum TeamMemberRole {
 
 // ─── Tables ───
 
+export const testTable = sqliteTable("test_table", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  note: text("note"),
+});
+
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
