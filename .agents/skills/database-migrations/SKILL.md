@@ -1,4 +1,11 @@
+---
+name: database-migrations
+description: Manage database migrations in this repo. Use before changing the database schema, migrations, or seed script, or when troubleshooting migration or seeding failures.
+---
+
 # Database Migrations
+
+Run commands from the repository root.
 
 The database is **disposable**. `data.db` is gitignored and holds nothing but seed data, so every schema change is free: migrate, throw the file away, reseed from scratch.
 
